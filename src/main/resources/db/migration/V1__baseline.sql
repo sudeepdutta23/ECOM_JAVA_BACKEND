@@ -1,0 +1,12 @@
+-- =====================================================================
+-- V1: Baseline migration.
+-- Proves the Flyway pipeline works end to end before any real tables exist.
+-- Authentication tables arrive in V2 during Phase 1.
+--
+-- Rules for every migration in this project:
+--   1. Never edit a migration after it has been applied anywhere; add a new one.
+--   2. One logical change per file.
+--   3. File name pattern: V{version}__{snake_case_description}.sql
+-- This file intentionally contains no statements. It creates version 1
+-- in flyway_schema_history, which gives every environment the same starting point.
+-- =====================================================================

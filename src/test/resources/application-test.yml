@@ -1,0 +1,18 @@
+# Test profile, activated with @ActiveProfiles("test").
+# Datasource properties are injected by Testcontainers (@ServiceConnection),
+# so placeholders here only satisfy property resolution.
+spring:
+  datasource:
+    url: jdbc:postgresql://unused:5432/unused
+    username: unused
+    password: unused
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    root: WARN
+    com.ecommerce.backend: INFO
+    org.flywaydb: INFO

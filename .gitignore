@@ -1,0 +1,22 @@
+# Build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Secrets: never commit real environment files
+.env
+.env.*
+!.env.example
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS files and logs
+.DS_Store
+Thumbs.db
+*.log
+logs/

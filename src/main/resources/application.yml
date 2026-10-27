@@ -1,0 +1,102 @@
+# =====================================================================
+# Shared configuration for ALL environments.
+# Profile files (application-{profile}.yml) override values below.
+# Secrets are NEVER written here; they arrive through environment variables.
+# =====================================================================
+spring:
+  application:
+    name: ecommerce-backend
+
+  profiles:
+    # Used only when SPRING_PROFILES_ACTIVE is not set
+    default: dev
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      pool-name: ecommerce-hikari
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: 5000      # ms to wait for a free connection before failing
+      idle-timeout: 300000          # 5 min
+      max-lifetime: 1800000         # 30 min, below typical DB/firewall idle cutoffs
+
+  jpa:
+    open-in-view: false             # no lazy loading from controllers; forces explicit fetch plans
+    hibernate:
+      ddl-auto: validate            # Flyway owns the schema; Hibernate only checks it matches
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    clean-disabled: true            # `flyway clean` drops everything; never allow it by default
+
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: UTC
+    deserialization:
+      fail-on-unknown-properties: true   # reject unexpected JSON fields (mass-assignment defence)
+
+  # spring.mvc.problemdetails.enabled stays false: GlobalExceptionHandler already produces
+  # RFC 9457 responses, and enabling it registers a competing handler.
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful                # finish in-flight requests on SIGTERM
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+    include-exception: false
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true               # /actuator/health/liveness and /readiness
+      show-details: never
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Enterprise e-commerce backend
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  default-produces-media-type: application/json
+
+logging:
+  pattern:
+    # Every log line carries the request ID put into the MDC by RequestIdFilter
+    level: "%5p [${spring.application.name:},%X{requestId:-}]"
+  level:
+    root: INFO
+    com.ecommerce.backend: INFO

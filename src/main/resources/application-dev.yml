@@ -1,0 +1,23 @@
+# Local development profile.
+# Reads the git-ignored .env file in the project root, the same file Docker Compose uses.
+spring:
+  config:
+    import: optional:file:.env[.properties]
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.ecommerce.backend: DEBUG
+    org.flywaydb: INFO
+    # Uncomment to see SQL and bound parameters while debugging:
+    # org.hibernate.SQL: DEBUG
+    # org.hibernate.orm.jdbc.bind: TRACE
