@@ -6,6 +6,17 @@ spring:
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
 
+  # Real SMTP provider. TLS is required so credentials and links never travel in clear text.
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+
 server:
   forward-headers-strategy: framework   # trust X-Forwarded-* from the load balancer for HTTPS detection
 

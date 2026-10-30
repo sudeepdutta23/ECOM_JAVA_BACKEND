@@ -136,6 +136,22 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void integrityLogLineNamesTheRuleButNeverTheValue() {
+        String pgMessage = "duplicate key value violates unique constraint \"uk_users_email\" "
+                + "Detail: Key (email)=(alice@example.com) already exists.";
+        var hibernate = new org.hibernate.exception.ConstraintViolationException(
+                "could not execute statement", new SQLException(pgMessage, "23505"), "uk_users_email");
+        var fromJdbc = new DataIntegrityViolationException("x", new SQLException(pgMessage, "23505"));
+
+        org.assertj.core.api.Assertions.assertThat(GlobalExceptionHandler.constraintOf(
+                        new DataIntegrityViolationException("x", hibernate)))
+                .isEqualTo("constraint=uk_users_email");
+        org.assertj.core.api.Assertions.assertThat(GlobalExceptionHandler.constraintOf(fromJdbc))
+                .isEqualTo("sqlState=23505")
+                .doesNotContain("alice");
+    }
+
+    @Test
     void unexpectedExceptionReturnsGeneric500() throws Exception {
         mockMvc.perform(get("/test/crash"))
                 .andExpect(status().isInternalServerError())

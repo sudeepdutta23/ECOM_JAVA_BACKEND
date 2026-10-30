@@ -38,14 +38,25 @@ Packages are organised **by feature first, layer second**:
 ```
 com.ecommerce.backend
   common/            shared kernel, no business logic
-    config/          OpenAPI, Clock
-    exception/       ErrorCode, BusinessException, GlobalExceptionHandler
+    config/          OpenAPI, Clock, JPA auditing, async (MDC propagation)
+    exception/       ErrorCode, BusinessException, ProblemDetails, GlobalExceptionHandler
+    mail/            EmailSender abstraction
+    persistence/     BaseEntity, UUID v7 generator
     response/        ApiResponse envelope, FieldErrorDetail
+    security/        SecurityConfig, CORS, headers, 401/403 handlers, rate limiting
+    util/            UuidV7, Masking
     web/             RequestIdFilter
   system/            connectivity endpoint
-  auth/              Phase 1
+  auth/              Phase 1 (complete): see docs/modules/AUTH.md
   user/              Phase 3
   ...
+```
+
+### Request pipeline
+
+```
+RequestIdFilter -> RateLimitFilter -> Spring Security (CORS, bearer JWT, rules) -> Controller
+      MDC id        429 before work     401/403 as Problem Details               -> Service -> Repository
 ```
 
 Inside a module, sub-packages are created only when needed: `controller`, `service`, `repository`, `entity`, `dto`, `mapper`.

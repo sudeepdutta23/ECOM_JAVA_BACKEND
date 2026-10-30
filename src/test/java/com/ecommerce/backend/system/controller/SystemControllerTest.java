@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.ecommerce.backend.common.security.SecurityConfig;
 import com.ecommerce.backend.common.web.RequestIdFilter;
 import java.time.Clock;
 import java.time.Instant;
@@ -16,14 +17,20 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Web-layer slice test: loads only MVC infrastructure, this controller, the controller advice
- * and servlet filters. No database, so it runs in milliseconds.
+ * Web-layer slice test: loads only MVC infrastructure, this controller, the controller advice,
+ * servlet filters and our real security rules. No database, so it runs in milliseconds.
+ *
+ * <p>{@code @WebMvcTest} does not scan {@code @Configuration} classes, so without importing
+ * {@link SecurityConfig} Spring Boot's default "everything needs a login" setup would apply.
+ * The JWT decoder is mocked because this slice never verifies a real token.
  */
 @WebMvcTest(SystemController.class)
-@Import(SystemControllerTest.FixedClockConfig.class)
+@Import({SecurityConfig.class, SystemControllerTest.FixedClockConfig.class})
 class SystemControllerTest {
 
     private static final Instant FIXED_NOW = Instant.parse("2026-01-01T00:00:00Z");
@@ -36,11 +43,14 @@ class SystemControllerTest {
         }
     }
 
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
+
     @Autowired
     private MockMvc mockMvc;
 
     @Test
-    void pingReturnsStandardEnvelope() throws Exception {
+    void pingIsPublicAndReturnsStandardEnvelope() throws Exception {
         mockMvc.perform(get("/api/v1/system/ping"))
                 .andExpect(status().isOk())
                 .andExpect(header().exists(RequestIdFilter.HEADER_NAME))
@@ -54,10 +64,11 @@ class SystemControllerTest {
     }
 
     @Test
-    void wrongMethodReturnsProblemDetail() throws Exception {
+    void methodsNotListedAsPublicRequireAuthentication() throws Exception {
+        // Only GET /ping is public. Default deny means POST is rejected before routing.
         mockMvc.perform(post("/api/v1/system/ping"))
-                .andExpect(status().isMethodNotAllowed())
-                .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
                 .andExpect(jsonPath("$.requestId").exists());
     }
 }

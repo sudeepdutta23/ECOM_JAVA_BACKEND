@@ -10,6 +10,9 @@ An ADR records one significant decision: the context, the choice, and its conseq
 | [ADR-004](adr/ADR-004-flyway.md) | Flyway for schema migrations | Accepted |
 | [ADR-005](adr/ADR-005-uuid.md) | UUID primary keys | Accepted |
 | [ADR-006](adr/ADR-006-error-format.md) | RFC 9457 Problem Details for errors | Accepted |
+| [ADR-007](adr/ADR-007-password-hashing.md) | Argon2id for password hashing | Accepted |
+| [ADR-008](adr/ADR-008-jwt-signing.md) | RS256 asymmetric signing for access tokens | Accepted |
+| [ADR-009](adr/ADR-009-refresh-token-storage.md) | Hashed, rotating refresh tokens in an HttpOnly cookie | Accepted |
 
 Template for new ADRs:
 

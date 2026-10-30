@@ -20,3 +20,8 @@ target/
 Thumbs.db
 *.log
 logs/
+
+# Private keys: never commit
+*.pem
+*.key
+keys/
