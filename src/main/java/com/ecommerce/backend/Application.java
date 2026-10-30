@@ -2,6 +2,7 @@ package com.ecommerce.backend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /**
  * Entry point of the modular monolith.
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * ({@code common}, {@code system}, and later {@code auth}, {@code user}, ...).
  */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class Application {
 
     public static void main(String[] args) {

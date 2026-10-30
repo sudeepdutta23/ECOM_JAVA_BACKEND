@@ -1,12 +1,9 @@
 package com.ecommerce.backend.common.exception;
 
 import com.ecommerce.backend.common.response.FieldErrorDetail;
-import com.ecommerce.backend.common.web.RequestIdFilter;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
-import java.net.URI;
-import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import org.slf4j.Logger;
@@ -63,7 +60,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleBusiness(BusinessException ex, HttpServletRequest request) {
         ErrorCode code = ex.getErrorCode();
         log.info("Business rule rejected request: code={}, message={}", code, ex.getMessage());
-        return build(code, ex.getMessage(), request.getRequestURI(), null);
+        List<FieldErrorDetail> errors = ex instanceof RequestValidationException rve ? rve.getErrors() : null;
+        return build(code, ex.getMessage(), request.getRequestURI(), errors);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -123,8 +121,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ProblemDetail> handleDataIntegrity(DataIntegrityViolationException ex,
                                                              HttpServletRequest request) {
-        // Log the root cause for operators; the client gets a generic message without SQL details.
-        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        // Log WHICH rule broke, never the database message: PostgreSQL includes the offending
+        // values ("Key (email)=(alice@example.com) already exists"), which is personal data.
+        log.warn("Data integrity violation: {}", constraintOf(ex));
         return build(ErrorCode.DATA_INTEGRITY_VIOLATION, ErrorCode.DATA_INTEGRITY_VIOLATION.title(),
                 request.getRequestURI(), null);
     }
@@ -151,12 +150,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                           HttpStatusCode statusCode,
                                                           WebRequest request) {
         if (body instanceof ProblemDetail pd) {
-            ErrorCode code = ErrorCode.fromStatus(statusCode.value());
-            pd.setType(typeOf(code));
-            pd.setInstance(URI.create(pathOf(request)));
-            pd.setProperty("code", code.name());
-            pd.setProperty("timestamp", Instant.now());
-            pd.setProperty("requestId", RequestIdFilter.currentRequestId());
+            ProblemDetails.enrich(pd, ErrorCode.fromStatus(statusCode.value()), pathOf(request));
         }
         return super.createResponseEntity(body, headers, statusCode, request);
     }
@@ -167,30 +161,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static ResponseEntity<ProblemDetail> build(ErrorCode code, String detail, String path,
                                                        @Nullable List<FieldErrorDetail> errors) {
-        return ResponseEntity.status(code.status()).body(problem(code, detail, path, errors));
+        return ResponseEntity.status(code.status()).body(ProblemDetails.of(code, detail, path, errors));
     }
 
     private static ProblemDetail problem(ErrorCode code, String detail, String path,
                                          @Nullable List<FieldErrorDetail> errors) {
-        ProblemDetail pd = ProblemDetail.forStatusAndDetail(code.status(), detail);
-        pd.setType(typeOf(code));
-        pd.setTitle(code.title());
-        pd.setInstance(URI.create(path));
-        pd.setProperty("code", code.name());
-        pd.setProperty("timestamp", Instant.now());
-        pd.setProperty("requestId", RequestIdFilter.currentRequestId());
-        if (errors != null && !errors.isEmpty()) {
-            pd.setProperty("errors", errors);
-        }
-        return pd;
-    }
-
-    private static URI typeOf(ErrorCode code) {
-        return URI.create("urn:problem-type:" + code.name().toLowerCase().replace('_', '-'));
+        return ProblemDetails.of(code, detail, path, errors);
     }
 
     private static String pathOf(WebRequest request) {
         return request instanceof ServletWebRequest swr ? swr.getRequest().getRequestURI() : "/";
+    }
+
+    /** Constraint name from Hibernate if available, otherwise the SQLSTATE code. Never values. */
+    static String constraintOf(Throwable ex) {
+        for (Throwable t = ex; t != null; t = t.getCause()) {
+            if (t instanceof org.hibernate.exception.ConstraintViolationException cve && cve.getConstraintName() != null) {
+                return "constraint=" + cve.getConstraintName();
+            }
+            if (t instanceof java.sql.SQLException sql && sql.getSQLState() != null) {
+                return "sqlState=" + sql.getSQLState();
+            }
+        }
+        return "cause=" + ex.getClass().getSimpleName();
     }
 
     private static String lastNode(String propertyPath) {

@@ -41,6 +41,26 @@ spring:
     validate-on-migrate: true
     clean-disabled: true            # `flyway clean` drops everything; never allow it by default
 
+  # SMTP settings shared by every profile. A JavaMailSender (and real sending) only exists when
+  # spring.mail.host is set: dev points it at Mailpit, prod at a real provider.
+  mail:
+    properties:
+      mail.smtp.connectiontimeout: 5000   # ms; never let a slow mail server hang a thread
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
+  # Thread pool for @Async work (emails). Bounded queue so a mail outage cannot exhaust memory.
+  task:
+    execution:
+      thread-name-prefix: async-
+      pool:
+        core-size: 2
+        max-size: 8
+        queue-capacity: 500
+      shutdown:
+        await-termination: true
+        await-termination-period: 10s
+
   jackson:
     default-property-inclusion: non_null
     time-zone: UTC
@@ -78,6 +98,55 @@ management:
       enabled: true
     java:
       enabled: true
+
+app:
+  # Browser origins allowed to call the API (comma-separated). Empty = no cross-origin access.
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+
+  # Per-client-IP limits on sensitive endpoints (token bucket). First matching rule applies.
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    max-tracked-clients: 100000
+    rules:
+      - name: login                       # password guessing and credential stuffing
+        method: POST
+        paths: [/api/v1/auth/login]
+        capacity: 10
+        period: 1m
+      - name: email-sending               # each call can send an email: stop inbox flooding
+        method: POST
+        paths: [/api/v1/auth/register, /api/v1/auth/email/resend-verification, /api/v1/auth/password/forgot]
+        capacity: 5
+        period: 15m
+      - name: credential-actions          # token redemption and password re-confirmation
+        method: POST
+        paths: [/api/v1/auth/refresh, /api/v1/auth/email/verify, /api/v1/auth/password/reset,
+                /api/v1/auth/password/change, /api/v1/auth/me/deactivate]
+        capacity: 30
+        period: 1m
+
+  auth:
+    frontend-base-url: ${APP_FRONTEND_BASE_URL:http://localhost:3000}
+    email-verification-ttl: 24h
+    refresh-token-ttl: 7d
+    max-failed-logins: 5
+    lockout-duration: 15m
+    password-reset-ttl: 30m
+    # Above the slowest normal failure path (hash + counter write, ~250 ms measured locally).
+    failed-login-min-duration: 400ms
+    # Secure cookies are only sent over HTTPS. Dev overrides this so curl works over plain HTTP.
+    refresh-cookie-secure: true
+  mail:
+    from: ${MAIL_FROM:Ecommerce <no-reply@ecommerce.local>}
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:ecommerce-backend}
+      access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
+      clock-skew: 30s
+      private-key-location: ${JWT_PRIVATE_KEY_LOCATION:}
+      key-id: ${JWT_KEY_ID:}
+      allow-ephemeral-key: false     # only dev and test may generate a throwaway key
 
 info:
   app:

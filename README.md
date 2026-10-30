@@ -64,6 +64,45 @@ Precedence, highest first: command-line arguments, OS environment variables, `ap
 | `DB_POOL_MAX_SIZE` | no | 10 (prod 20) | Max JDBC connections |
 | `SERVER_PORT` | no | 8080 | HTTP port |
 | `API_DOCS_ENABLED` | no | false in prod | Expose Swagger in prod |
+| `JWT_PRIVATE_KEY_LOCATION` | prod only | none (dev generates a temporary key) | RSA PKCS#8 PEM, e.g. `file:keys/jwt-private.pem` |
+| `JWT_ISSUER` | no | ecommerce-backend | `iss` claim of access tokens |
+| `JWT_ACCESS_TOKEN_TTL` | no | 15m | Access token lifetime |
+| `JWT_KEY_ID` | no | key thumbprint | `kid` header |
+
+| `APP_FRONTEND_BASE_URL` | no | http://localhost:3000 | Base URL used in email links |
+| `MAIL_HOST` | prod only | localhost in dev (Mailpit) | SMTP server |
+| `MAIL_PORT` | no | 1025 dev, 587 prod | SMTP port |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | prod | none | SMTP credentials |
+| `MAIL_FROM` | no | `Ecommerce <no-reply@ecommerce.local>` | Sender address |
+
+| `CORS_ALLOWED_ORIGINS` | no | none (dev: localhost:3000, 5173) | Comma-separated browser origins |
+| `RATE_LIMIT_ENABLED` | no | true | Per-IP limits on auth endpoints |
+
+If port 8080 is taken, start with `SERVER_PORT=8081`.
+
+Emails sent in dev land in Mailpit: open http://localhost:8025.
+
+## Postman collection
+
+`postman/` holds a collection of every API endpoint plus a local environment.
+
+1. In Postman, **Import** both files from `postman/`.
+2. Select the **ecommerce-backend local** environment and check `baseUrl` (default `http://localhost:8081`).
+3. Run **Register**, then **Dev tools / Mailpit: get token from latest email**, then **Verify email**, then **Login**.
+4. Protected requests now work: the access token is saved automatically, and Postman's cookie jar sends the refresh cookie.
+
+`PostmanCollectionSyncIT` fails the build when an endpoint exists that the collection lacks, or the collection calls one that no longer exists. When you add an endpoint, add its request to the collection in the same commit.
+
+## Connecting a database client (DBeaver, pgAdmin, DataGrip)
+
+| Setting | Value |
+|---|---|
+| Host | `localhost` |
+| Port | `DB_PORT` from `.env` (5432) |
+| Database | `DB_NAME` (ecommerce) |
+| User / password | `DB_USERNAME` / `DB_PASSWORD` from `.env` |
+
+The container must be running (`docker compose up -d`). Change the schema only through Flyway migrations, never by hand.
 
 ## Running tests
 

@@ -22,5 +22,15 @@ services:
       timeout: 5s
       retries: 10
 
+  # Fake SMTP server with a web inbox. Every email the app sends lands here; nothing leaves your machine.
+  # Inbox UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: ecommerce-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MAIL_PORT:-1025}:1025"   # SMTP
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"   # web UI
+
 volumes:
   postgres-data:

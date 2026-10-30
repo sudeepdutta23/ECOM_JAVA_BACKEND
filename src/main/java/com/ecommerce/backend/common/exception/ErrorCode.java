@@ -22,7 +22,17 @@ public enum ErrorCode {
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported media type"),
     BUSINESS_RULE_VIOLATION(HttpStatus.UNPROCESSABLE_ENTITY, "Business rule violation"),
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "Too many requests"),
-    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error"),
+    SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable"),
+
+    // ----- Authentication (Phase 1) -----
+    AUTH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "Access token expired"),
+    AUTH_INVALID_ACCOUNT_TOKEN(HttpStatus.BAD_REQUEST, "Invalid or expired link"),
+    AUTH_INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Invalid credentials"),
+    AUTH_EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "Email not verified"),
+    AUTH_ACCOUNT_DISABLED(HttpStatus.FORBIDDEN, "Account disabled"),
+    AUTH_INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid refresh token"),
+    AUTH_INVALID_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST, "Current password is incorrect");
 
     private final HttpStatus status;
     private final String title;
@@ -52,6 +62,7 @@ public enum ErrorCode {
             case 415 -> UNSUPPORTED_MEDIA_TYPE;
             case 422 -> BUSINESS_RULE_VIOLATION;
             case 429 -> TOO_MANY_REQUESTS;
+            case 503 -> SERVICE_UNAVAILABLE;
             default -> statusCode >= 500 ? INTERNAL_ERROR : MALFORMED_REQUEST;
         };
     }

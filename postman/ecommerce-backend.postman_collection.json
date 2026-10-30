@@ -1,0 +1,275 @@
+{
+  "info": {
+    "name": "ecommerce-backend",
+    "description": "Every endpoint of the ecommerce-backend API.\n\nKept in sync with the code by PostmanCollectionSyncIT: the build fails if an API endpoint exists that is not in this collection.\n\nQuick flow: Register -> Mailpit: get token from latest email -> Verify email -> Login -> any protected request.\n\nThe access token is saved automatically after Login, Refresh and Change password. The refresh token is an HttpOnly cookie that Postman's cookie jar stores and sends by itself.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Ping",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/system/ping",
+            "description": "Public connectivity check. Returns the standard success envelope."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Health (Actuator)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/actuator/health",
+            "description": "Infrastructure health including the database."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registration",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "description": "Always 202, whether or not the email exists. Then run 'Mailpit: get token from latest email'."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('202 Accepted', () => pm.response.to.have.status(202));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Verify email",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{verificationToken}}\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/email/verify",
+            "description": "Consumes the one-time token from the verification email."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Resend verification email",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/email/resend-verification",
+            "description": "Always 202. Earlier links stop working."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Saves the access token to {{accessToken}}. The refresh_token cookie goes into Postman's cookie jar."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  pm.environment.set('accessToken', pm.response.json().data.accessToken);",
+              "}"
+            ] } }
+          ]
+        },
+        {
+          "name": "Refresh access token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "description": "Uses the refresh_token cookie (sent automatically). Rotates it and saves the new access token."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  pm.environment.set('accessToken', pm.response.json().data.accessToken);",
+              "}"
+            ] } }
+          ]
+        },
+        {
+          "name": "Logout (this device)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/logout",
+            "description": "Revokes the refresh token in the cookie and deletes the cookie. Always 204."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Logout all devices",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/logout-all",
+            "description": "Bearer token required. Revokes every refresh token of the user."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+            ] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Passwords",
+      "item": [
+        {
+          "name": "Change password",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/password/change",
+            "description": "Bearer token required. Ends other sessions, returns a new one. On success the {{password}} and {{newPassword}} variables are swapped, so you can run it again."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  pm.environment.set('accessToken', pm.response.json().data.accessToken);",
+              "  const old = pm.environment.get('password');",
+              "  pm.environment.set('password', pm.environment.get('newPassword'));",
+              "  pm.environment.set('newPassword', old);",
+              "}"
+            ] } }
+          ]
+        },
+        {
+          "name": "Forgot password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/password/forgot",
+            "description": "Always 202. Then run 'Mailpit: get token from latest email' to fill {{resetToken}}."
+          }
+        },
+        {
+          "name": "Reset password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/password/reset",
+            "description": "Sets the new password and ends every session. On success the password variables are swapped."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('204 No Content', () => pm.response.to.have.status(204));",
+              "if (pm.response.code === 204) {",
+              "  const old = pm.environment.get('password');",
+              "  pm.environment.set('password', pm.environment.get('newPassword'));",
+              "  pm.environment.set('newPassword', old);",
+              "}"
+            ] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Account",
+      "item": [
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/auth/me",
+            "description": "Bearer token required. The signed-in account."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Deactivate my account",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"password\": \"{{password}}\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/me/deactivate",
+            "description": "Bearer token required. Irreversible without an administrator (Phase 3). Use a throwaway email."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dev tools",
+      "item": [
+        {
+          "name": "Mailpit: get token from latest email",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{mailpitUrl}}/api/v1/search?query=to:{{email}}",
+            "description": "Not part of the API. Reads the newest email sent to {{email}} from Mailpit and copies its token into {{verificationToken}} or {{resetToken}}."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const messages = pm.response.json().messages || [];",
+              "pm.test('An email was found', () => pm.expect(messages.length).to.be.above(0));",
+              "if (messages.length > 0) {",
+              "  const latest = messages[0];",
+              "  pm.sendRequest(pm.environment.get('mailpitUrl') + '/api/v1/message/' + latest.ID, (err, res) => {",
+              "    const match = /token=([A-Za-z0-9_-]{43})/.exec(res.json().Text || '');",
+              "    if (!match) { console.log('No token link in: ' + latest.Subject); return; }",
+              "    const target = latest.Subject.includes('Reset') ? 'resetToken' : 'verificationToken';",
+              "    pm.environment.set(target, match[1]);",
+              "    console.log('Saved ' + target + ' from: ' + latest.Subject);",
+              "  });",
+              "}"
+            ] } }
+          ]
+        }
+      ]
+    }
+  ]
+}

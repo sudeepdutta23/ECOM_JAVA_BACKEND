@@ -48,6 +48,18 @@ Clients branch on `code`, never on `detail` or `title`.
 | 409 | `DATA_INTEGRITY_VIOLATION` | Database constraint caught a race |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | Wrong Content-Type |
 | 422 | `BUSINESS_RULE_VIOLATION` | Valid input that breaks a business rule |
+| 400 | `AUTH_INVALID_ACCOUNT_TOKEN` | Email link unknown, expired, used, or for another purpose |
+| 401 | `AUTH_TOKEN_EXPIRED` | Access token expired; call refresh |
+| 401 | `AUTH_INVALID_CREDENTIALS` | Unknown email, wrong password, or temporarily locked account |
+| 403 | `AUTH_EMAIL_NOT_VERIFIED` | Correct password, email not yet verified |
+| 403 | `AUTH_ACCOUNT_DISABLED` | Correct password, account deactivated |
+| 401 | `AUTH_INVALID_REFRESH_TOKEN` | Refresh cookie missing, unknown, expired, revoked or reused; sign in again |
+| 400 | `AUTH_INVALID_CURRENT_PASSWORD` | Wrong current password on change or deactivate (counts toward lockout) |
+
+### Client guidance for refresh
+
+- Refresh "single-flight": if several requests get `AUTH_TOKEN_EXPIRED` at once, run ONE refresh and let the others wait for it. Two parallel refreshes with the same cookie look like token theft and end the session.
+- On `AUTH_INVALID_REFRESH_TOKEN`, send the user to the login page.
 | 429 | `TOO_MANY_REQUESTS` | Rate limit (Phase 1) |
 | 500 | `INTERNAL_ERROR` | Anything unexpected; details only in logs |
 
@@ -60,5 +72,17 @@ Send `X-Request-Id` (8 to 64 characters, letters, digits, `.`, `_`, `-`) to corr
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/api/v1/system/ping` | Public | Connectivity check |
+| POST | `/api/v1/auth/register` | Public | Create account; always 202 |
+| POST | `/api/v1/auth/email/verify` | Public | Activate account with emailed token |
+| POST | `/api/v1/auth/email/resend-verification` | Public | New verification link; always 202 |
+| POST | `/api/v1/auth/login` | Public | Access token in body, refresh token in HttpOnly cookie |
+| POST | `/api/v1/auth/refresh` | Refresh cookie | Rotate refresh token, new access token |
+| POST | `/api/v1/auth/logout` | Refresh cookie (optional) | End this session, delete cookie; always 204 |
+| POST | `/api/v1/auth/logout-all` | Bearer | End every session of the user; always 204 |
+| POST | `/api/v1/auth/password/change` | Bearer | Needs current password; ends other sessions, returns a new one |
+| POST | `/api/v1/auth/password/forgot` | Public | Email a 30-minute reset link; always 202 |
+| POST | `/api/v1/auth/password/reset` | Public | New password with reset token; ends all sessions; 204 |
+| GET | `/api/v1/auth/me` | Bearer | Current account summary |
+| POST | `/api/v1/auth/me/deactivate` | Bearer | Needs current password; ends all sessions; 204 |
 | GET | `/actuator/health` | Public | Health, including database |
 | GET | `/actuator/info` | Public | Build information |

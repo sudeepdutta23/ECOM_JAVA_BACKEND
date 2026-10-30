@@ -11,6 +11,17 @@ spring:
       hibernate:
         format_sql: false
 
+app:
+  cors:
+    allowed-origins: http://localhost:3000
+  # Every integration test calls from 127.0.0.1 and shares one context, so limits would make them
+  # fail each other. RateLimitIT switches it back on in its own context.
+  rate-limit:
+    enabled: false
+  security:
+    jwt:
+      allow-ephemeral-key: true
+
 logging:
   level:
     root: WARN
