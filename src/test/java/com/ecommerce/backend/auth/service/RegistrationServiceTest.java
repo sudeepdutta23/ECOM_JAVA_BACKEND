@@ -20,6 +20,7 @@ import com.ecommerce.backend.auth.event.VerificationEmailRequested;
 import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.RequestValidationException;
+import com.ecommerce.backend.rbac.service.AuthorizationService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -45,10 +46,11 @@ class RegistrationServiceTest {
     private final AccountTokenService accountTokens = mock(AccountTokenService.class);
     private final PasswordEncoder encoder = mock(PasswordEncoder.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+    private final AuthorizationService authorization = mock(AuthorizationService.class);
     private final RegistrationService service = new RegistrationService(
             users, accountTokens, new PasswordPolicy(), encoder, events,
             TransactionOperations.withoutTransaction(),
-            TestAuthProperties.defaults(),
+            TestAuthProperties.defaults(), authorization,
             Clock.fixed(NOW, ZoneOffset.UTC));
 
     {
@@ -69,6 +71,7 @@ class RegistrationServiceTest {
         assertThat(saved.getValue().getPasswordHash()).isEqualTo("{argon2}encoded");
         assertThat(saved.getValue().getStatus()).isEqualTo(UserStatus.PENDING_VERIFICATION);
         verify(events).publishEvent(new VerificationEmailRequested("alice@example.com", "raw-token"));
+        verify(authorization).assignDefaultRole(saved.getValue().getId());
     }
 
     @Test
@@ -80,6 +83,7 @@ class RegistrationServiceTest {
         service.register("alice@example.com", PASSWORD);
 
         verify(users, never()).saveAndFlush(any());
+        verify(authorization, never()).assignDefaultRole(any());
         verify(events).publishEvent(new DuplicateRegistrationAttempted("alice@example.com"));
         assertThat(active.getPasswordHash()).isEqualTo("{argon2}old"); // never overwritten
     }
@@ -137,7 +141,7 @@ class RegistrationServiceTest {
     @Test
     void verifyEmailRejectsDeactivatedUser() {
         User deactivated = User.register("alice@example.com", "{argon2}h", NOW);
-        deactivated.deactivate();
+        deactivated.deactivate(NOW);
         when(accountTokens.consume("raw-token", TokenPurpose.EMAIL_VERIFICATION)).thenReturn(deactivated);
 
         assertThatThrownBy(() -> service.verifyEmail("raw-token")).isInstanceOf(BusinessException.class);

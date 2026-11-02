@@ -173,7 +173,7 @@ class RefreshTokenServiceTest {
     @Test
     void deactivatedUserCannotRefreshAndTheTokenIsKilled() {
         RefreshToken token = stored(NOW.minus(Duration.ofDays(1)));
-        user.deactivate();
+        user.deactivate(NOW);
 
         assertInvalid(() -> service.rotate(RAW, CLIENT));
 

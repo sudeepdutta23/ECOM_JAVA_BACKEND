@@ -62,7 +62,7 @@ class UserRepositoryIT extends AbstractAuthRepositoryIT {
         User first = users.findById(id).orElseThrow();
         User second = users.findById(id).orElseThrow();
 
-        first.deactivate();
+        first.deactivate(NOW);
         users.save(first); // version 0 -> 1
 
         second.changePassword("{argon2}other", NOW);

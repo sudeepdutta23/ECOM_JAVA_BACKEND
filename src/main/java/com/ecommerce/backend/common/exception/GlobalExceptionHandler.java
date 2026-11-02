@@ -4,12 +4,15 @@ import com.ecommerce.backend.common.response.FieldErrorDetail;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +21,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -95,6 +99,43 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(), errors);
     }
 
+    /**
+     * Constraint annotations on {@code @RequestParam} / {@code @PathVariable} values, for example
+     * {@code @Max(100) int size}. Spring 6.1+ validates them itself and raises this exception.
+     */
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(HandlerMethodValidationException ex,
+                                                                            HttpHeaders headers,
+                                                                            HttpStatusCode status,
+                                                                            WebRequest request) {
+        List<FieldErrorDetail> errors = ex.getParameterValidationResults().stream()
+                .flatMap(result -> result.getResolvableErrors().stream()
+                        .map(error -> new FieldErrorDetail(result.getMethodParameter().getParameterName(),
+                                error.getDefaultMessage())))
+                .sorted(Comparator.comparing(FieldErrorDetail::field))
+                .toList();
+        ProblemDetail body = problem(ErrorCode.VALIDATION_FAILED, "One or more parameters are invalid", pathOf(request), errors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).headers(headers).body(body);
+    }
+
+    /**
+     * A query or path value that cannot be converted, for example {@code ?status=BANNED} or a
+     * malformed UUID. The default message names Java types; this one names the parameter and, for
+     * enums, the accepted values.
+     */
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException ex, HttpHeaders headers,
+                                                        HttpStatusCode status, WebRequest request) {
+        String field = ex.getPropertyName() != null ? ex.getPropertyName() : "parameter";
+        Class<?> type = ex.getRequiredType();
+        String message = type != null && type.isEnum()
+                ? "must be one of " + Arrays.toString(type.getEnumConstants())
+                : "has an invalid format";
+        ProblemDetail body = problem(ErrorCode.VALIDATION_FAILED, "One or more parameters are invalid",
+                pathOf(request), List.of(new FieldErrorDetail(field, message)));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).headers(headers).body(body);
+    }
+
     /** Unparseable JSON, wrong types, or unknown fields. Never echo the parser message. */
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
@@ -128,9 +169,34 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(), null);
     }
 
+    /**
+     * {@code @Version} detected that someone else changed the row between our read and our write.
+     * The client should reload and retry; nothing was overwritten.
+     */
+    @ExceptionHandler(org.springframework.dao.OptimisticLockingFailureException.class)
+    public ResponseEntity<ProblemDetail> handleOptimisticLock(org.springframework.dao.OptimisticLockingFailureException ex,
+                                                              HttpServletRequest request) {
+        log.info("Optimistic lock conflict: path={}", request.getRequestURI());
+        return build(ErrorCode.CONCURRENT_MODIFICATION,
+                "This resource was changed by someone else. Reload it and try again.", request.getRequestURI(), null);
+    }
+
     // ---------------------------------------------------------------------------------------
     // Fallback
     // ---------------------------------------------------------------------------------------
+
+    /**
+     * {@code @PreAuthorize} denials. URL-level denials are answered by the security filter chain,
+     * but method security throws INSIDE Spring MVC, so without this handler the catch-all below
+     * would turn a 403 into a 500.
+     */
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ProblemDetail> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex,
+                                                            HttpServletRequest request) {
+        log.info("Access denied by method security: path={}", request.getRequestURI());
+        return build(ErrorCode.FORBIDDEN, "You do not have permission to perform this action.",
+                request.getRequestURI(), null);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleUnexpected(Exception ex, HttpServletRequest request) {

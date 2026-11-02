@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class UserTest {
 
@@ -80,9 +82,82 @@ class UserTest {
     void deactivateChangesStatus() {
         User user = User.register("a@example.com", "{argon2}hash", NOW);
 
-        user.deactivate();
+        user.deactivate(NOW);
 
         assertThat(user.getStatus()).isEqualTo(UserStatus.DEACTIVATED);
+    }
+
+    @Test
+    void deactivationRecordsTheOwnerAsTheChanger() {
+        User user = activeUser();
+
+        user.deactivate(NOW);
+
+        assertThat(user.getStatusChangedBy()).isEqualTo(user.getId());
+        assertThat(user.getStatusChangedAt()).isEqualTo(NOW);
+        assertThat(user.getStatusReason()).isNull();
+    }
+
+    @Test
+    void suspensionRecordsWhoWhenAndWhy() {
+        User user = activeUser();
+        UUID admin = UUID.randomUUID();
+
+        user.suspend("  Chargeback fraud  ", admin, NOW);
+
+        assertThat(user.getStatus()).isEqualTo(UserStatus.SUSPENDED);
+        assertThat(user.isActive()).isFalse();
+        assertThat(user.getStatusReason()).isEqualTo("Chargeback fraud");
+        assertThat(user.getStatusChangedBy()).isEqualTo(admin);
+        assertThat(user.getStatusChangedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void onlyActiveAccountsCanBeSuspended() {
+        User pending = User.register("p@example.com", "{argon2}hash", NOW);
+        User suspended = activeUser();
+        suspended.suspend("Abuse", UUID.randomUUID(), NOW);
+
+        assertThatThrownBy(() -> pending.suspend("Abuse", UUID.randomUUID(), NOW)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> suspended.suspend("Again", UUID.randomUUID(), NOW)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void aSuspensionNeedsAReason() {
+        assertThatThrownBy(() -> activeUser().suspend("   ", UUID.randomUUID(), NOW))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void reactivationReopensSuspendedAndDeactivatedAccountsAndClearsTheReason() {
+        User suspended = activeUser();
+        suspended.suspend("Abuse", UUID.randomUUID(), NOW);
+        User deactivated = activeUser();
+        deactivated.deactivate(NOW);
+        UUID admin = UUID.randomUUID();
+        Instant later = NOW.plusSeconds(60);
+
+        suspended.reactivate(admin, later);
+        deactivated.reactivate(admin, later);
+
+        assertThat(suspended.isActive()).isTrue();
+        assertThat(suspended.getStatusReason()).isNull();
+        assertThat(suspended.getStatusChangedBy()).isEqualTo(admin);
+        assertThat(deactivated.isActive()).isTrue();
+    }
+
+    @Test
+    void activeAndPendingAccountsCannotBeReactivated() {
+        assertThatThrownBy(() -> activeUser().reactivate(UUID.randomUUID(), NOW)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> User.register("p@example.com", "{argon2}hash", NOW).reactivate(UUID.randomUUID(), NOW))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    private static User activeUser() {
+        User user = User.register("a@example.com", "{argon2}hash", NOW);
+        ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
+        user.verifyEmail(NOW);
+        return user;
     }
 
     @Test

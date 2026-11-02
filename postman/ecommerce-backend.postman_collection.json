@@ -7,7 +7,11 @@
   "auth": {
     "type": "bearer",
     "bearer": [
-      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
     ]
   },
   "item": [
@@ -17,21 +21,31 @@
         {
           "name": "Ping",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/system/ping",
             "description": "Public connectivity check. Returns the standard success envelope."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('200 OK', () => pm.response.to.have.status(200));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Health (Actuator)",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": "{{baseUrl}}/actuator/health",
             "description": "Infrastructure health including the database."
@@ -45,42 +59,84 @@
         {
           "name": "Register",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [ { "key": "Content-Type", "value": "application/json" } ],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
             "url": "{{baseUrl}}/api/v1/auth/register",
             "description": "Always 202, whether or not the email exists. Then run 'Mailpit: get token from latest email'."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('202 Accepted', () => pm.response.to.have.status(202));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('202 Accepted', () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Verify email",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [ { "key": "Content-Type", "value": "application/json" } ],
-            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{verificationToken}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{verificationToken}}\"\n}"
+            },
             "url": "{{baseUrl}}/api/v1/auth/email/verify",
             "description": "Consumes the one-time token from the verification email."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('200 OK', () => pm.response.to.have.status(200));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Resend verification email",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [ { "key": "Content-Type", "value": "application/json" } ],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
             "url": "{{baseUrl}}/api/v1/auth/email/resend-verification",
             "description": "Always 202. Earlier links stop working."
           }
@@ -93,51 +149,83 @@
         {
           "name": "Login",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [ { "key": "Content-Type", "value": "application/json" } ],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
             "url": "{{baseUrl}}/api/v1/auth/login",
             "description": "Saves the access token to {{accessToken}}. The refresh_token cookie goes into Postman's cookie jar."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('200 OK', () => pm.response.to.have.status(200));",
-              "if (pm.response.code === 200) {",
-              "  pm.environment.set('accessToken', pm.response.json().data.accessToken);",
-              "}"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('accessToken', pm.response.json().data.accessToken);",
+                  "}"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Refresh access token",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "url": "{{baseUrl}}/api/v1/auth/refresh",
             "description": "Uses the refresh_token cookie (sent automatically). Rotates it and saves the new access token."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('200 OK', () => pm.response.to.have.status(200));",
-              "if (pm.response.code === 200) {",
-              "  pm.environment.set('accessToken', pm.response.json().data.accessToken);",
-              "}"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('accessToken', pm.response.json().data.accessToken);",
+                  "}"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Logout (this device)",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "url": "{{baseUrl}}/api/v1/auth/logout",
             "description": "Revokes the refresh token in the cookie and deletes the cookie. Always 204."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('204 No Content', () => pm.response.to.have.status(204));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -148,9 +236,15 @@
             "description": "Bearer token required. Revokes every refresh token of the user."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('204 No Content', () => pm.response.to.have.status(204));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
           ]
         }
       ]
@@ -162,30 +256,54 @@
           "name": "Change password",
           "request": {
             "method": "POST",
-            "header": [ { "key": "Content-Type", "value": "application/json" } ],
-            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}"
+            },
             "url": "{{baseUrl}}/api/v1/auth/password/change",
             "description": "Bearer token required. Ends other sessions, returns a new one. On success the {{password}} and {{newPassword}} variables are swapped, so you can run it again."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('200 OK', () => pm.response.to.have.status(200));",
-              "if (pm.response.code === 200) {",
-              "  pm.environment.set('accessToken', pm.response.json().data.accessToken);",
-              "  const old = pm.environment.get('password');",
-              "  pm.environment.set('password', pm.environment.get('newPassword'));",
-              "  pm.environment.set('newPassword', old);",
-              "}"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('accessToken', pm.response.json().data.accessToken);",
+                  "  const old = pm.environment.get('password');",
+                  "  pm.environment.set('password', pm.environment.get('newPassword'));",
+                  "  pm.environment.set('newPassword', old);",
+                  "}"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Forgot password",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [ { "key": "Content-Type", "value": "application/json" } ],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
             "url": "{{baseUrl}}/api/v1/auth/password/forgot",
             "description": "Always 202. Then run 'Mailpit: get token from latest email' to fill {{resetToken}}."
           }
@@ -193,22 +311,38 @@
         {
           "name": "Reset password",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [ { "key": "Content-Type", "value": "application/json" } ],
-            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}"
+            },
             "url": "{{baseUrl}}/api/v1/auth/password/reset",
             "description": "Sets the new password and ends every session. On success the password variables are swapped."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('204 No Content', () => pm.response.to.have.status(204));",
-              "if (pm.response.code === 204) {",
-              "  const old = pm.environment.get('password');",
-              "  pm.environment.set('password', pm.environment.get('newPassword'));",
-              "  pm.environment.set('newPassword', old);",
-              "}"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));",
+                  "if (pm.response.code === 204) {",
+                  "  const old = pm.environment.get('password');",
+                  "  pm.environment.set('password', pm.environment.get('newPassword'));",
+                  "  pm.environment.set('newPassword', old);",
+                  "}"
+                ]
+              }
+            }
           ]
         }
       ]
@@ -224,20 +358,427 @@
             "description": "Bearer token required. The signed-in account."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('200 OK', () => pm.response.to.have.status(200));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Deactivate my account",
           "request": {
             "method": "POST",
-            "header": [ { "key": "Content-Type", "value": "application/json" } ],
-            "body": { "mode": "raw", "raw": "{\n  \"password\": \"{{password}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"{{password}}\"\n}"
+            },
             "url": "{{baseUrl}}/api/v1/auth/me/deactivate",
             "description": "Bearer token required. Irreversible without an administrator (Phase 3). Use a throwaway email."
           }
+        },
+        {
+          "name": "My sessions",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/auth/me/sessions",
+            "description": "Signed-in devices, newest activity first; 'current' marks this one. Saves the first non-current session as {{sessionId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const other = pm.response.json().data.find(s => !s.current);",
+                  "if (other) { pm.environment.set('sessionId', other.sessionId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "End one of my sessions",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/auth/me/sessions/{{sessionId}}",
+            "description": "Signs out that device: it can no longer refresh. 404 for unknown sessions or sessions of other users."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Administration: roles and permissions",
+      "item": [
+        {
+          "name": "List permissions",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/permissions",
+            "description": "Requires role:read (the ADMIN role). As a CUSTOMER this returns 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List roles",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/roles",
+            "description": "Requires role:read."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"ORDER_MANAGER\",\n  \"name\": \"Order manager\",\n  \"description\": \"Handles order issues\",\n  \"permissions\": [\"role:read\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/roles",
+            "description": "Requires role:write and every permission you include. Saves {{roleId}} and {{roleVersion}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.environment.set('roleId', d.id);",
+                  "  pm.environment.set('roleVersion', d.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get role",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/roles/{{roleId}}",
+            "description": "Requires role:read. Refreshes {{roleVersion}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { pm.environment.set('roleVersion', pm.response.json().data.version); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Order manager\",\n  \"description\": \"Handles order issues\",\n  \"permissions\": [\"role:read\", \"role:write\"],\n  \"version\": {{roleVersion}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/roles/{{roleId}}",
+            "description": "Requires role:write. Sends {{roleVersion}}; a stale one returns 409 CONCURRENT_MODIFICATION."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { pm.environment.set('roleVersion', pm.response.json().data.version); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete role",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/admin/roles/{{roleId}}",
+            "description": "Requires role:write. Fails with 409 while the role is assigned."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List a user's roles",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/roles",
+            "description": "Requires role:read. Set {{userId}} to the target account's id (its /me response shows it)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Grant role to user",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/roles/{{roleId}}",
+            "description": "Requires role:assign and every permission of the role. Idempotent. Not allowed on yourself (403 RBAC_SELF_MODIFICATION_DENIED). The user sees it after their next refresh."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Revoke role from user",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/roles/{{roleId}}",
+            "description": "Requires role:assign. Idempotent. CUSTOMER cannot be revoked; the last active ADMIN cannot be demoted (409 RBAC_LAST_ADMIN)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Administration: users",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/users?page=0&size=20",
+            "description": "Requires user:read. Newest first. Optional filters: status=PENDING_VERIFICATION|ACTIVE|DEACTIVATED|SUSPENDED, email=<case-insensitive prefix>. size is 1 to 100. Saves the first row's id as {{userId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const rows = pm.response.json().data.content;",
+                  "if (rows.length) { pm.environment.set('userId', rows[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search users by email prefix",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/users?email=me&status=ACTIVE",
+            "description": "Requires user:read. 'me' finds me@example.com. % and _ match literally."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get user",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}",
+            "description": "Requires user:read. Status history, lockout, active sessions, roles and permissions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suspend user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Chargeback fraud, ticket 4711\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/suspend",
+            "description": "Requires user:manage and every permission the account holds. Ends all its sessions. The reason is internal. 409 USER_INVALID_STATUS unless ACTIVE; 409 RBAC_LAST_ADMIN for the last admin."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reactivate user",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/reactivate",
+            "description": "Requires user:manage. For SUSPENDED or DEACTIVATED accounts."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unlock user",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/unlock",
+            "description": "Requires user:manage. Ends a lockout after failed logins. Idempotent."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sign out user everywhere",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/sign-out",
+            "description": "Requires user:manage. Ends every session; access tokens already issued expire within 15 minutes. Idempotent."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -247,26 +788,34 @@
         {
           "name": "Mailpit: get token from latest email",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": "{{mailpitUrl}}/api/v1/search?query=to:{{email}}",
             "description": "Not part of the API. Reads the newest email sent to {{email}} from Mailpit and copies its token into {{verificationToken}} or {{resetToken}}."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "const messages = pm.response.json().messages || [];",
-              "pm.test('An email was found', () => pm.expect(messages.length).to.be.above(0));",
-              "if (messages.length > 0) {",
-              "  const latest = messages[0];",
-              "  pm.sendRequest(pm.environment.get('mailpitUrl') + '/api/v1/message/' + latest.ID, (err, res) => {",
-              "    const match = /token=([A-Za-z0-9_-]{43})/.exec(res.json().Text || '');",
-              "    if (!match) { console.log('No token link in: ' + latest.Subject); return; }",
-              "    const target = latest.Subject.includes('Reset') ? 'resetToken' : 'verificationToken';",
-              "    pm.environment.set(target, match[1]);",
-              "    console.log('Saved ' + target + ' from: ' + latest.Subject);",
-              "  });",
-              "}"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const messages = pm.response.json().messages || [];",
+                  "pm.test('An email was found', () => pm.expect(messages.length).to.be.above(0));",
+                  "if (messages.length > 0) {",
+                  "  const latest = messages[0];",
+                  "  pm.sendRequest(pm.environment.get('mailpitUrl') + '/api/v1/message/' + latest.ID, (err, res) => {",
+                  "    const match = /token=([A-Za-z0-9_-]{43})/.exec(res.json().Text || '');",
+                  "    if (!match) { console.log('No token link in: ' + latest.Subject); return; }",
+                  "    const target = latest.Subject.includes('Reset') ? 'resetToken' : 'verificationToken';",
+                  "    pm.environment.set(target, match[1]);",
+                  "    console.log('Saved ' + target + ' from: ' + latest.Subject);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
           ]
         }
       ]

@@ -64,6 +64,7 @@ Precedence, highest first: command-line arguments, OS environment variables, `ap
 | `DB_POOL_MAX_SIZE` | no | 10 (prod 20) | Max JDBC connections |
 | `SERVER_PORT` | no | 8080 | HTTP port |
 | `API_DOCS_ENABLED` | no | false in prod | Expose Swagger in prod |
+| `APP_RBAC_BOOTSTRAP_ADMIN_EMAIL` | no | none | Makes this verified account the first ADMIN at startup while no admin exists |
 | `JWT_PRIVATE_KEY_LOCATION` | prod only | none (dev generates a temporary key) | RSA PKCS#8 PEM, e.g. `file:keys/jwt-private.pem` |
 | `JWT_ISSUER` | no | ecommerce-backend | `iss` claim of access tokens |
 | `JWT_ACCESS_TOKEN_TTL` | no | 15m | Access token lifetime |

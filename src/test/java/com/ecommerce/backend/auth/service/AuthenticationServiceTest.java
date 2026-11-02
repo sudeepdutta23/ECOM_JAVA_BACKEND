@@ -32,6 +32,8 @@ import org.springframework.transaction.support.TransactionOperations;
 
 class AuthenticationServiceTest {
 
+    private static final UUID SESSION = UUID.randomUUID();
+
     private static final Instant NOW = Instant.parse("2026-01-01T10:00:00Z");
     private static final Duration LOCKOUT = Duration.ofMinutes(15);
     private static final String EMAIL = "alice@example.com";
@@ -64,9 +66,9 @@ class AuthenticationServiceTest {
         when(users.findByEmail(EMAIL)).thenReturn(Optional.of(user));
         when(users.findById(user.getId())).thenReturn(Optional.of(user));
         when(users.getReferenceById(user.getId())).thenReturn(user);
-        when(accessTokens.issue(user.getId())).thenReturn(new AccessToken("jwt", NOW.plusSeconds(900), 900));
+        when(accessTokens.issue(user.getId(), SESSION)).thenReturn(new AccessToken("jwt", NOW.plusSeconds(900), 900));
         when(refreshTokens.issueForNewLogin(user, CLIENT))
-                .thenReturn(new IssuedRefreshToken("raw-refresh", NOW.plus(Duration.ofDays(7))));
+                .thenReturn(new IssuedRefreshToken("raw-refresh", NOW.plus(Duration.ofDays(7)), SESSION));
     }
 
     @Test
@@ -148,11 +150,31 @@ class AuthenticationServiceTest {
 
     @Test
     void deactivatedAccountGets403AfterCorrectPassword() {
-        user.deactivate();
+        user.deactivate(NOW);
         when(encoder.matches(PASSWORD, REAL_HASH)).thenReturn(true);
 
         assertCode(() -> service.login(EMAIL, PASSWORD, CLIENT), ErrorCode.AUTH_ACCOUNT_DISABLED);
         verify(refreshTokens, never()).issueForNewLogin(any(), any());
+    }
+
+    @Test
+    void suspendedAccountGets403AfterCorrectPasswordWithoutTheReason() {
+        user.suspend("Chargeback fraud, ticket 4711", UUID.randomUUID(), NOW);
+        when(encoder.matches(PASSWORD, REAL_HASH)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.login(EMAIL, PASSWORD, CLIENT)).isInstanceOfSatisfying(BusinessException.class, e -> {
+            assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AUTH_ACCOUNT_DISABLED);
+            assertThat(e.getMessage()).contains("suspended").doesNotContain("fraud").doesNotContain("4711");
+        });
+        verify(refreshTokens, never()).issueForNewLogin(any(), any());
+    }
+
+    @Test
+    void suspendedAccountWithAWrongPasswordLooksLikeAnyWrongPassword() {
+        user.suspend("Abuse", UUID.randomUUID(), NOW);
+        when(encoder.matches("wrong", REAL_HASH)).thenReturn(false);
+
+        assertCode(() -> service.login(EMAIL, "wrong", CLIENT), ErrorCode.AUTH_INVALID_CREDENTIALS);
     }
 
     @Test
@@ -177,7 +199,7 @@ class AuthenticationServiceTest {
 
     @Test
     void refreshPairsTheRotatedTokenWithANewAccessToken() {
-        IssuedRefreshToken rotated = new IssuedRefreshToken("rotated", NOW.plus(Duration.ofDays(7)));
+        IssuedRefreshToken rotated = new IssuedRefreshToken("rotated", NOW.plus(Duration.ofDays(7)), SESSION);
         when(refreshTokens.rotate("old", CLIENT)).thenReturn(new RefreshTokenService.Rotation(user.getId(), rotated));
 
         LoginResult result = service.refresh("old", CLIENT);

@@ -3,6 +3,7 @@ package com.ecommerce.backend.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -22,6 +23,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import com.ecommerce.backend.rbac.service.RoleAssignmentService;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,6 +39,7 @@ class AccountServiceTest {
     private final PasswordEncoder encoder = mock(PasswordEncoder.class);
     private final RefreshTokenService refreshTokens = mock(RefreshTokenService.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+    private final RoleAssignmentService roleAssignments = mock(RoleAssignmentService.class);
     private AccountService service;
     private User user;
 
@@ -45,7 +48,7 @@ class AccountServiceTest {
         TransactionOperations noTx = TransactionOperations.withoutTransaction();
         CurrentPasswordCheck check = new CurrentPasswordCheck(encoder,
                 new FailedLoginRecorder(users, events, noTx, TestAuthProperties.defaults()));
-        service = new AccountService(users, check, refreshTokens, events, noTx, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new AccountService(users, check, refreshTokens, events, roleAssignments, noTx, Clock.fixed(NOW, ZoneOffset.UTC));
 
         user = User.register("alice@example.com", "{argon2}h", NOW);
         ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
@@ -86,6 +89,18 @@ class AccountServiceTest {
 
         assertThatThrownBy(() -> service.deactivate(user.getId(), "wrong")).isInstanceOfSatisfying(BusinessException.class,
                 e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AUTH_INVALID_CURRENT_PASSWORD));
+
+        assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
+        verify(refreshTokens, never()).revokeAll(any(), any());
+    }
+
+    @Test
+    void theLastActiveAdministratorCannotDeactivate() {
+        doThrow(new BusinessException(ErrorCode.RBAC_LAST_ADMIN, "last"))
+                .when(roleAssignments).requireCanLeave(user.getId());
+
+        assertThatThrownBy(() -> service.deactivate(user.getId(), PASSWORD)).isInstanceOfSatisfying(BusinessException.class,
+                e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RBAC_LAST_ADMIN));
 
         assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
         verify(refreshTokens, never()).revokeAll(any(), any());

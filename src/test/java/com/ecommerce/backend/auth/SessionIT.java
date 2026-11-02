@@ -183,6 +183,15 @@ class SessionIT extends AbstractIntegrationTest {
         assertThat(revokeReason(cookie)).isEqualTo("ACCOUNT_DEACTIVATED");
     }
 
+    @Test
+    void suspendedUserCannotRefreshAndTheReasonSaysSo() {
+        String cookie = loginCookie();
+        jdbc.update("UPDATE users SET status = 'SUSPENDED', status_reason = 'Abuse' WHERE email = ?", email);
+
+        assertThat(client.refresh(cookie).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(revokeReason(cookie)).isEqualTo("ACCOUNT_SUSPENDED");
+    }
+
     // ------------------------------------------------------------------ logout
 
     @Test

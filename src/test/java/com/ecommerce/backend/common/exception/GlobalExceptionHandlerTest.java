@@ -62,6 +62,11 @@ class GlobalExceptionHandlerTest {
                     new SQLException("duplicate key value violates unique constraint \"uk_users_email\""));
         }
 
+        @GetMapping("/test/denied")
+        void denied() {
+            throw new org.springframework.security.access.AccessDeniedException("method security says no");
+        }
+
         @GetMapping("/test/crash")
         void crash() {
             throw new IllegalStateException("secret internal detail: connection string xyz");
@@ -149,6 +154,14 @@ class GlobalExceptionHandlerTest {
         org.assertj.core.api.Assertions.assertThat(GlobalExceptionHandler.constraintOf(fromJdbc))
                 .isEqualTo("sqlState=23505")
                 .doesNotContain("alice");
+    }
+
+    @Test
+    void methodSecurityDenialIs403NotA500() throws Exception {
+        mockMvc.perform(get("/test/denied"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(content().string(not(containsString("method security says no"))));
     }
 
     @Test

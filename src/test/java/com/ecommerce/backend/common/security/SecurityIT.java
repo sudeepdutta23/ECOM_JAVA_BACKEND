@@ -86,7 +86,7 @@ class SecurityIT extends AbstractIntegrationTest {
 
     @Test
     void validTokenPassesSecurity() {
-        String token = issuer.issue(UUID.randomUUID()).value();
+        String token = issuer.issue(UUID.randomUUID(), UUID.randomUUID()).value();
 
         ResponseEntity<String> response = get(PROTECTED_PATH, "Bearer " + token);
 
@@ -101,7 +101,7 @@ class SecurityIT extends AbstractIntegrationTest {
 
     @Test
     void tamperedPayloadIsRejected() {
-        String[] parts = issuer.issue(UUID.randomUUID()).value().split("\\.");
+        String[] parts = issuer.issue(UUID.randomUUID(), UUID.randomUUID()).value().split("\\.");
         String forgedPayload = base64Url("{\"iss\":\"ecommerce-backend\",\"sub\":\"" + UUID.randomUUID()
                 + "\",\"exp\":" + (Instant.now().getEpochSecond() + 600) + "}");
 

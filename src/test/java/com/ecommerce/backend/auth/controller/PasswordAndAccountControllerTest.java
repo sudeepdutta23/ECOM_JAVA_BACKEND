@@ -23,6 +23,8 @@ import com.ecommerce.backend.auth.service.IssuedRefreshToken;
 import com.ecommerce.backend.auth.service.LoginResult;
 import com.ecommerce.backend.auth.service.PasswordService;
 import com.ecommerce.backend.common.security.SecurityConfig;
+import com.ecommerce.backend.rbac.service.AuthorizationService;
+import com.ecommerce.backend.rbac.service.UserAuthorities;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @Import({SecurityConfig.class, RefreshTokenCookie.class})
 class PasswordAndAccountControllerTest {
 
+    private static final UUID SESSION = UUID.randomUUID();
+
     private static final UUID USER_ID = UUID.randomUUID();
     private static final String TOKEN = "q2vQ8m1f0xY3bS9kLw7pT4rN6uC5aE2dH8jK1zR0sVg";
 
@@ -50,6 +54,9 @@ class PasswordAndAccountControllerTest {
 
     @MockitoBean
     private AccountService accounts;
+
+    @MockitoBean
+    private AuthorizationService authorization;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
@@ -77,7 +84,7 @@ class PasswordAndAccountControllerTest {
     void changeUsesTheTokenSubjectAndReturnsANewSession() throws Exception {
         when(passwords.changePassword(eq(USER_ID), eq("old"), eq("Even-Better-Passphrase-42"), any()))
                 .thenReturn(new LoginResult(new AccessToken("new.jwt", Instant.now().plusSeconds(900), 900),
-                        new IssuedRefreshToken("new-cookie", Instant.now().plusSeconds(60))));
+                        new IssuedRefreshToken("new-cookie", Instant.now().plusSeconds(60), SESSION)));
 
         mockMvc.perform(signedIn(json(post("/api/v1/auth/password/change"),
                         "{\"currentPassword\":\"old\",\"newPassword\":\"Even-Better-Passphrase-42\"}")))
@@ -141,6 +148,8 @@ class PasswordAndAccountControllerTest {
         Instant created = Instant.parse("2026-01-01T09:00:00Z");
         when(accounts.currentUser(USER_ID)).thenReturn(
                 new UserSummary(USER_ID, "alice@example.com", UserStatus.ACTIVE, created, null, created));
+        when(authorization.authoritiesOf(USER_ID)).thenReturn(
+                UserAuthorities.of(java.util.Set.of("ADMIN", "CUSTOMER"), java.util.Set.of("role:read")));
 
         mockMvc.perform(signedIn(get("/api/v1/auth/me")))
                 .andExpect(status().isOk())
@@ -149,6 +158,9 @@ class PasswordAndAccountControllerTest {
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.data.emailVerified").value(true))
                 .andExpect(jsonPath("$.data.lastLoginAt").doesNotExist())
+                .andExpect(jsonPath("$.data.roles[0]").value("ADMIN"))
+                .andExpect(jsonPath("$.data.roles[1]").value("CUSTOMER"))
+                .andExpect(jsonPath("$.data.permissions[0]").value("role:read"))
                 .andExpect(jsonPath("$.data.passwordHash").doesNotExist());
     }
 

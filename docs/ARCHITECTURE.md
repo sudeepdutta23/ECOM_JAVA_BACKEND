@@ -48,9 +48,23 @@ com.ecommerce.backend
     web/             RequestIdFilter
   system/            connectivity endpoint
   auth/              Phase 1 (complete): see docs/modules/AUTH.md
-  user/              Phase 3
+  rbac/              Phase 2: roles, permissions, method security; see docs/modules/RBAC.md
+  (user administration lives in auth/, which owns the User entity: see docs/modules/USERS.md)
+  profile/           Phase 5: names, phone, addresses; refers to users by ID
   ...
 ```
+
+### Module dependencies
+
+```
+auth ──> rbac ──> common
+  └──────────────> common
+```
+
+- `auth` calls `rbac.service.AuthorizationService` to read a user's authorities and to grant the default role.
+- `rbac` never imports `auth`. It knows users only by UUID; the database foreign key keeps integrity.
+- When rbac needs facts about users (exists? active?), it declares the `rbac.service.UserDirectory` interface and auth implements it. The dependency still points from auth to rbac.
+- Before an account stops being active, auth calls `rbac.service.RoleAssignmentService.requireCanLeave`, so the last administrator cannot disappear.
 
 ### Request pipeline
 

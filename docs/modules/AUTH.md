@@ -54,7 +54,7 @@ Services are split by use case so no class grows into a "god service".
 
 | Token | Format | Lifetime | Stored server-side | Delivered |
 |---|---|---|---|---|
-| Access | JWT, RS256, claims `sub`, `iat`, `exp`, `jti`, `iss` | 15 min | No | Response body; client sends `Authorization: Bearer` |
+| Access | JWT, RS256, claims `sub`, `iat`, `nbf`, `exp`, `jti`, `iss`, `roles`, `perms` (Phase 2), `sid` (Phase 3) | 15 min | No | Response body; client sends `Authorization: Bearer` |
 | Refresh | 256-bit random, base64url | 7 days | SHA-256 hash | HttpOnly cookie |
 | Email verification | 256-bit random | 24 h | SHA-256 hash | Link in email |
 | Password reset | 256-bit random | 30 min | SHA-256 hash | Link in email |
@@ -80,6 +80,8 @@ Concurrency: the token row is locked with `SELECT ... FOR UPDATE` during rotatio
 
 ```
 register ──> PENDING_VERIFICATION ──verify email──> ACTIVE ──deactivate──> DEACTIVATED
+                                                      └──suspend (admin, Phase 3)──> SUSPENDED
+(admin reactivation of DEACTIVATED and SUSPENDED: see docs/modules/USERS.md)
                                                      │  ▲
                               5 failed logins ───────┘  └── locked_until passes (15 min)
                               (locked_until set; status unchanged)
@@ -107,7 +109,7 @@ All paths are under `/api/v1/auth`. All bodies are JSON. Errors use Problem Deta
 | 11 | GET | `/me` | Bearer | 200 | Current account summary |
 | 12 | POST | `/me/deactivate` | Bearer | 204 | Deactivate own account (needs password) |
 
-**Why verbs in URLs?** Authentication operations are commands, not resources. Modelling them as `POST /sessions` and `DELETE /sessions/{id}` is possible, but every major identity provider uses action endpoints, and they are clearer for clients. Resource style returns in Phase 3 for session listing (`GET /me/sessions`).
+**Why verbs in URLs?** Authentication operations are commands, not resources. Modelling them as `POST /sessions` and `DELETE /sessions/{id}` is possible, but every major identity provider uses action endpoints, and they are clearer for clients. Resource style is used where the thing is a resource: `GET /me/sessions` and `DELETE /me/sessions/{id}` (Phase 3).
 
 **Why `/email/verify` is a POST, not a GET link?** Email scanners and link previewers follow GET links automatically and would consume the token. The email link opens a frontend page, which POSTs the token.
 
@@ -169,7 +171,7 @@ Password policy follows NIST SP 800-63B: length over complexity. No forced symbo
 | Invalid DTO | 400 | `VALIDATION_FAILED` |
 | Wrong email or password, unknown email, or locked account | 401 | `AUTH_INVALID_CREDENTIALS` |
 | Correct password but email not verified | 403 | `AUTH_EMAIL_NOT_VERIFIED` |
-| Correct password but account deactivated | 403 | `AUTH_ACCOUNT_DISABLED` |
+| Correct password but account deactivated or suspended | 403 | `AUTH_ACCOUNT_DISABLED` |
 | Missing, invalid, expired, revoked or reused refresh token | 401 | `AUTH_INVALID_REFRESH_TOKEN` |
 | Missing or invalid access token | 401 | `UNAUTHORIZED` |
 | Expired access token | 401 | `AUTH_TOKEN_EXPIRED` |

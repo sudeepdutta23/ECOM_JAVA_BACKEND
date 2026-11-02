@@ -39,6 +39,8 @@ import org.springframework.transaction.support.TransactionOperations;
 
 class PasswordServiceTest {
 
+    private static final UUID SESSION = UUID.randomUUID();
+
     private static final Instant NOW = Instant.parse("2026-01-01T10:00:00Z");
     private static final String EMAIL = "alice@example.com";
     private static final String OLD = "Correct-Horse-9-Battery";
@@ -71,8 +73,8 @@ class PasswordServiceTest {
         when(users.getReferenceById(user.getId())).thenReturn(user);
         when(encoder.matches(OLD, OLD_HASH)).thenReturn(true);
         when(encoder.encode(NEW)).thenReturn("{argon2}new");
-        when(accessTokens.issue(user.getId())).thenReturn(new AccessToken("jwt", NOW.plusSeconds(900), 900));
-        when(refreshTokens.issueForNewLogin(any(), any())).thenReturn(new IssuedRefreshToken("fresh", NOW.plusSeconds(60)));
+        when(accessTokens.issue(user.getId(), SESSION)).thenReturn(new AccessToken("jwt", NOW.plusSeconds(900), 900));
+        when(refreshTokens.issueForNewLogin(any(), any())).thenReturn(new IssuedRefreshToken("fresh", NOW.plusSeconds(60), SESSION));
     }
 
     // ------------------------------------------------------------------ change
@@ -126,7 +128,7 @@ class PasswordServiceTest {
 
     @Test
     void deactivatedAccountCannotChangePassword() {
-        user.deactivate();
+        user.deactivate(NOW);
 
         assertCode(() -> service.changePassword(user.getId(), OLD, NEW, CLIENT), ErrorCode.UNAUTHORIZED);
     }
@@ -187,7 +189,7 @@ class PasswordServiceTest {
     void resetForAccountDeactivatedSinceTheEmailIsRejected() {
         when(accountTokens.peekUser(RESET_TOKEN, TokenPurpose.PASSWORD_RESET)).thenReturn(user);
         User deactivated = User.register(EMAIL, OLD_HASH, NOW);
-        deactivated.deactivate();
+        deactivated.deactivate(NOW);
         when(accountTokens.consume(RESET_TOKEN, TokenPurpose.PASSWORD_RESET)).thenReturn(deactivated);
 
         assertCode(() -> service.resetPassword(RESET_TOKEN, NEW), ErrorCode.AUTH_INVALID_ACCOUNT_TOKEN);

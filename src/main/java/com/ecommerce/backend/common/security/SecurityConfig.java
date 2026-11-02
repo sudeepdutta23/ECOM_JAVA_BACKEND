@@ -17,9 +17,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
@@ -43,6 +47,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
+@EnableMethodSecurity // enables @PreAuthorize on controllers and services
 public class SecurityConfig {
 
     static final String[] PUBLIC_GET = {
@@ -82,7 +87,8 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
-                        .jwt(Customizer.withDefaults())          // uses the JwtDecoder bean from JwtConfig
+                        // Decoder: the JwtDecoder bean from JwtConfig. Authorities: our claims, see below.
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                         .bearerTokenResolver(bearerTokenResolver())
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
@@ -133,6 +139,36 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
         return source;
+    }
+
+    /**
+     * Turns token claims into Spring Security authorities.
+     *
+     * <ul>
+     *   <li>Each {@code perms} entry becomes an authority as-is: {@code role:read}. This is what
+     *       {@code @PreAuthorize("hasAuthority('role:read')")} checks.</li>
+     *   <li>Each {@code roles} entry becomes {@code ROLE_<code>}, Spring's convention, so
+     *       {@code hasRole('ADMIN')} works if ever needed. Code should prefer permissions.</li>
+     * </ul>
+     *
+     * <p>Spring's default converter would read a {@code scope} claim and prefix {@code SCOPE_};
+     * we do not use OAuth scopes, so it is replaced.
+     */
+    static JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            List<GrantedAuthority> authorities = new ArrayList<>();
+            List<String> permissions = jwt.getClaimAsStringList(TokenClaims.PERMISSIONS);
+            if (permissions != null) {
+                permissions.forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
+            }
+            List<String> roles = jwt.getClaimAsStringList(TokenClaims.ROLES);
+            if (roles != null) {
+                roles.forEach(r -> authorities.add(new SimpleGrantedAuthority("ROLE_" + r)));
+            }
+            return authorities;
+        });
+        return converter;
     }
 
     private static RequestMatcher swaggerUi() {

@@ -2,7 +2,6 @@ package com.ecommerce.backend.auth.service;
 
 import com.ecommerce.backend.auth.entity.RevokeReason;
 import com.ecommerce.backend.auth.entity.User;
-import com.ecommerce.backend.auth.entity.UserStatus;
 import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.auth.security.AccessToken;
 import com.ecommerce.backend.auth.security.AccessTokenIssuer;
@@ -125,17 +124,40 @@ public class AuthenticationService {
             throw invalidCredentials();
         }
 
-        if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-            log.info("Login rejected: reason=EMAIL_NOT_VERIFIED, userId={}", user.getId());
-            throw new BusinessException(ErrorCode.AUTH_EMAIL_NOT_VERIFIED,
-                    "Verify your email address before signing in. You can request a new link.");
-        }
-        if (user.getStatus() == UserStatus.DEACTIVATED) {
-            log.info("Login rejected: reason=DEACTIVATED, userId={}", user.getId());
-            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_DISABLED, "This account has been deactivated.");
+        BusinessException refusal = refusalFor(user);
+        if (refusal != null) {
+            throw refusal;
         }
 
         return succeed(user, password, client, now);
+    }
+
+    /**
+     * Whether an account with a correct password may sign in, decided per status.
+     *
+     * <p>A switch EXPRESSION over an enum must cover every value, so adding a status later is a
+     * compile error here until someone decides whether it may sign in. A chain of ifs would let a
+     * new status fall through to a successful login.
+     */
+    private static BusinessException refusalFor(User user) {
+        return switch (user.getStatus()) {
+            case ACTIVE -> null;
+            case PENDING_VERIFICATION -> {
+                log.info("Login rejected: reason=EMAIL_NOT_VERIFIED, userId={}", user.getId());
+                yield new BusinessException(ErrorCode.AUTH_EMAIL_NOT_VERIFIED,
+                        "Verify your email address before signing in. You can request a new link.");
+            }
+            case DEACTIVATED -> {
+                log.info("Login rejected: reason=DEACTIVATED, userId={}", user.getId());
+                yield new BusinessException(ErrorCode.AUTH_ACCOUNT_DISABLED, "This account has been deactivated.");
+            }
+            case SUSPENDED -> {
+                // Same code as deactivated; the internal reason is never revealed to the owner.
+                log.info("Login rejected: reason=SUSPENDED, userId={}", user.getId());
+                yield new BusinessException(ErrorCode.AUTH_ACCOUNT_DISABLED,
+                        "This account has been suspended. Please contact support.");
+            }
+        };
     }
 
     private void recordFailure(User user, Instant now) {
@@ -159,7 +181,7 @@ public class AuthenticationService {
             return refreshTokens.issueForNewLogin(users.getReferenceById(user.getId()), client);
         });
 
-        AccessToken access = accessTokens.issue(user.getId());
+        AccessToken access = accessTokens.issue(user.getId(), refresh.sessionId());
         log.info("Login succeeded: userId={}", user.getId());
         return new LoginResult(access, refresh);
     }
@@ -169,7 +191,8 @@ public class AuthenticationService {
     /** Exchanges a refresh token for a new access token and a new refresh token. */
     public LoginResult refresh(String rawRefreshToken, ClientInfo client) {
         RefreshTokenService.Rotation rotation = refreshTokens.rotate(rawRefreshToken, client);
-        return new LoginResult(accessTokens.issue(rotation.userId()), rotation.refreshToken());
+        return new LoginResult(accessTokens.issue(rotation.userId(), rotation.refreshToken().sessionId()),
+                rotation.refreshToken());
     }
 
     /** Ends the session the refresh token belongs to. Always succeeds from the caller's view. */

@@ -54,7 +54,7 @@ class PostmanCollectionSyncIT extends AbstractIntegrationTest {
             }
             path.getValue().fieldNames().forEachRemaining(method -> {
                 if (HTTP_METHODS.contains(method)) {
-                    operations.add(method.toUpperCase(Locale.ROOT) + " " + path.getKey());
+                    operations.add(method.toUpperCase(Locale.ROOT) + " " + normalize(path.getKey()));
                 }
             });
         }
@@ -72,7 +72,15 @@ class PostmanCollectionSyncIT extends AbstractIntegrationTest {
             String raw = url.isTextual() ? url.asText() : url.get("raw").asText();
             String path = raw.replace("{{baseUrl}}", "").replace("{{mailpitUrl}}", "mailpit:");
             int query = path.indexOf('?');
-            into.add(request.get("method").asText() + " " + (query >= 0 ? path.substring(0, query) : path));
+            into.add(request.get("method").asText() + " " + normalize(query >= 0 ? path.substring(0, query) : path));
         }
+    }
+
+    /**
+     * Path variables are written {roleId} in OpenAPI and {{roleId}} (a Postman variable) in the
+     * collection. Both become {*} so only the shape of the path is compared.
+     */
+    private static String normalize(String path) {
+        return path.replaceAll("\\{\\{[^}]+}}", "{*}").replaceAll("\\{[^}*]+}", "{*}");
     }
 }

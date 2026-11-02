@@ -7,6 +7,7 @@ import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.auth.repository.UserSummary;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
+import com.ecommerce.backend.rbac.service.RoleAssignmentService;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
@@ -27,16 +28,18 @@ public class AccountService {
     private final CurrentPasswordCheck currentPassword;
     private final RefreshTokenService refreshTokens;
     private final ApplicationEventPublisher events;
+    private final RoleAssignmentService roleAssignments;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public AccountService(UserRepository users, CurrentPasswordCheck currentPassword,
                           RefreshTokenService refreshTokens, ApplicationEventPublisher events,
-                          TransactionOperations transactions, Clock clock) {
+                          RoleAssignmentService roleAssignments, TransactionOperations transactions, Clock clock) {
         this.users = users;
         this.currentPassword = currentPassword;
         this.refreshTokens = refreshTokens;
         this.events = events;
+        this.roleAssignments = roleAssignments;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -52,7 +55,8 @@ public class AccountService {
 
     /**
      * Deactivates the account after re-confirming the password, and ends every session.
-     * Reactivation is an administrator action (Phase 3).
+     * Reactivation is an administrator action (Phase 3). The last active administrator is refused
+     * (409 {@code RBAC_LAST_ADMIN}), or nobody could administer the system afterwards.
      */
     public void deactivate(UUID userId, String password) {
         Instant now = Instant.now(clock);
@@ -60,8 +64,9 @@ public class AccountService {
         currentPassword.verify(user, password, now);
 
         transactions.executeWithoutResult(status -> {
+            roleAssignments.requireCanLeave(userId); // locks the ADMIN row until commit
             User managed = users.findById(userId).orElseThrow(AccountService::accountUnavailable);
-            managed.deactivate();
+            managed.deactivate(now);
             String email = managed.getEmail();
             refreshTokens.revokeAll(userId, RevokeReason.ACCOUNT_DEACTIVATED);
             events.publishEvent(new AccountDeactivated(email));

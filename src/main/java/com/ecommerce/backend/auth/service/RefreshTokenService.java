@@ -3,6 +3,7 @@ package com.ecommerce.backend.auth.service;
 import com.ecommerce.backend.auth.entity.RefreshToken;
 import com.ecommerce.backend.auth.entity.RevokeReason;
 import com.ecommerce.backend.auth.entity.User;
+import com.ecommerce.backend.auth.entity.UserStatus;
 import com.ecommerce.backend.auth.event.RefreshTokenReuseDetected;
 import com.ecommerce.backend.auth.repository.RefreshTokenRepository;
 import com.ecommerce.backend.auth.security.OpaqueTokens;
@@ -115,7 +116,9 @@ public class RefreshTokenService {
             return null;
         }
         if (!user.isActive()) {
-            token.revoke(RevokeReason.ACCOUNT_DEACTIVATED, now);
+            // Normally already revoked by the status change; this covers tokens that slipped through.
+            token.revoke(user.getStatus() == UserStatus.SUSPENDED
+                    ? RevokeReason.ACCOUNT_SUSPENDED : RevokeReason.ACCOUNT_DEACTIVATED, now);
             log.info("Refresh rejected: reason=ACCOUNT_NOT_ACTIVE, userId={}", user.getId());
             return null;
         }
@@ -181,7 +184,7 @@ public class RefreshTokenService {
         OpaqueTokens.Generated generated = opaqueTokens.generate();
         RefreshToken token = tokens.save(RefreshToken.issue(user, familyId, generated.hash(), now,
                 properties.refreshTokenTtl(), client.ipAddress(), client.userAgent()));
-        return new Issued(token, new IssuedRefreshToken(generated.raw(), token.getExpiresAt()));
+        return new Issued(token, new IssuedRefreshToken(generated.raw(), token.getExpiresAt(), token.getFamilyId()));
     }
 
     static BusinessException invalidRefreshToken() {

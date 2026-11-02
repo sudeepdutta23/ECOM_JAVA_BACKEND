@@ -88,7 +88,7 @@ public class PasswordService {
         });
 
         log.info("Password changed: userId={}", userId);
-        return new LoginResult(accessTokens.issue(userId), refresh);
+        return new LoginResult(accessTokens.issue(userId, refresh.sessionId()), refresh);
     }
 
     // ------------------------------------------------------------------ forgot / reset (signed out)

@@ -137,6 +137,10 @@ app:
     failed-login-min-duration: 400ms
     # Secure cookies are only sent over HTTPS. Dev overrides this so curl works over plain HTTP.
     refresh-cookie-secure: true
+  rbac:
+    # First administrator: this account gets ADMIN at startup while no active admin exists.
+    # Register and verify it first, then restart. Does nothing once an admin exists.
+    bootstrap-admin-email: ${APP_RBAC_BOOTSTRAP_ADMIN_EMAIL:}
   mail:
     from: ${MAIL_FROM:Ecommerce <no-reply@ecommerce.local>}
   security:

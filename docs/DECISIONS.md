@@ -13,6 +13,8 @@ An ADR records one significant decision: the context, the choice, and its conseq
 | [ADR-007](adr/ADR-007-password-hashing.md) | Argon2id for password hashing | Accepted |
 | [ADR-008](adr/ADR-008-jwt-signing.md) | RS256 asymmetric signing for access tokens | Accepted |
 | [ADR-009](adr/ADR-009-refresh-token-storage.md) | Hashed, rotating refresh tokens in an HttpOnly cookie | Accepted |
+| [ADR-010](adr/ADR-010-authorization-model.md) | Permission-based RBAC with authorities in the access token | Accepted |
+| [ADR-011](adr/ADR-011-pagination.md) | Offset pagination for back-office lists, keyset where data is large or moving | Accepted |
 
 Template for new ADRs:
 

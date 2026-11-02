@@ -52,8 +52,23 @@ Surefire runs `*Test`. Failsafe runs `*IT`.
 | `RateLimitIT` | Real filter chain in its own context: 11th login and 6th email-sending call refused |
 | `SecurityIT` (CORS and headers) | Allowed and refused preflights, exposed headers, CSP on API but not Swagger UI, Permissions-Policy |
 | `AuthJourneyIT` | One user's full life cycle, plus an audit of all log output: no password, token, hash or full email anywhere |
-| `QueryPlanIT` | `EXPLAIN` of 8 hot queries (with seq scans disabled) proves each one can use its index |
+| `QueryPlanIT` | `EXPLAIN` of 21 hot auth, rbac and user-admin queries (with seq scans disabled) proves each one can use its index |
+| `UserSearchTest`, `UserAdminControllerTest` | LIKE escaping; defaults, size cap and page validation reported per parameter, enum values listed without Java type names, `user:read` required |
+| `UserAdminIT` | Case-insensitive prefix search newest first, `%` and `_` matched literally, page totals and past-the-end, combined filters, no credentials in responses, detail with roles, sessions, lock and status change |
+| `UserAdminServiceTest` | Order of checks (manage rule, last admin, then revoke), self-action, escalation, invalid status, nothing changes on refusal, atomic unlock, sign-out reason |
+| `UserAdminActionsIT` | Suspension ends sessions and blocks sign-in without revealing the reason (also not in logs), reactivation after suspension and self-deactivation, unlock after a real lockout, sign-out of two devices, a support role limited to customers, last admin kept |
+| `SessionServiceTest`, `SessionsIT` | One session per sign-in, `current` from the `sid` claim, same ID across rotation, ending another device only, ending the current one like logout, 404 for other users' sessions, logout-all empties the list |
+| `UserManagementSchemaIT` | V4: suspension needs a reason, status and revoke-reason checks, SET NULL on the actor, ADMIN holds `user:*`, one email index serving equality and prefix |
 | `BoundedPasswordEncoderTest` | Concurrency cap honoured, fails fast with 503, permits always returned |
+| `RbacSchemaIT` | V3 constraints, seed data, and the V2-to-V3 upgrade backfill in a scratch schema |
+| `PermissionTest`, `PermissionCatalogVerifierTest` | Codes valid and in sync with constants; startup refuses a drifted catalogue |
+| `JwtAuthoritiesConverterTest`, `PermissionControllerTest` | Claims become authorities; `@PreAuthorize` allows, denies with 403, and ignores bare role names |
+| `AuthorizationIT` | CUSTOMER on registration, claims in tokens, 403 for customers, promotion visible in `/me` at once and in the token after refresh |
+| `RoleManagementServiceTest`, `RoleControllerTest` | Every guard (escalation before and after edit, system roles, in-use, stale version, unknown permission); HTTP contract incl. 201 Location, immutable code, 403/404/400 |
+| `RoleManagementIT` | Full CRUD, lost-update protection, an editor without `role:assign` blocked from granting or stripping it, holders gaining permissions at refresh |
+| `RoleAssignmentServiceTest`, `UserRoleControllerTest` | Self-modification, escalation in both directions, CUSTOMER kept, last active admin, lock taken before checks, bootstrap outcomes; 204/403/409 contract and `role:assign` required |
+| `RoleAssignmentIT` | Grant and revoke idempotent and visible after refresh, 404s, an assigner limited to its own power, last admin kept, two admins demoting each other at once leave one, bootstrap only while no active admin exists |
+| `AdminJourneyIT` | Phase 2 as one story: bootstrap, delegation, the only admin cannot leave, hand-over, stale token refused for management, deactivation rules, plus a log audit |
 | `LoginIT` | Tokens and cookie over HTTP, hashed storage, identical failure bodies, lockout and expiry, one lock email, parallel guessing, BCrypt upgrade |
 
 Integration tests replace the email transport with `RecordingEmailSender` and wait for async delivery with Awaitility.

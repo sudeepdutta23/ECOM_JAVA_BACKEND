@@ -32,7 +32,21 @@ public enum ErrorCode {
     AUTH_EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "Email not verified"),
     AUTH_ACCOUNT_DISABLED(HttpStatus.FORBIDDEN, "Account disabled"),
     AUTH_INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid refresh token"),
-    AUTH_INVALID_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST, "Current password is incorrect");
+    AUTH_INVALID_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST, "Current password is incorrect"),
+
+    // ----- Concurrency -----
+    CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "Modified by someone else"),
+
+    // ----- Authorization / RBAC (Phase 2) -----
+    RBAC_ESCALATION_DENIED(HttpStatus.FORBIDDEN, "Privilege escalation denied"),
+    RBAC_SYSTEM_ROLE(HttpStatus.CONFLICT, "System role is read-only"),
+    RBAC_ROLE_IN_USE(HttpStatus.CONFLICT, "Role is still assigned"),
+    RBAC_SELF_MODIFICATION_DENIED(HttpStatus.FORBIDDEN, "You cannot change your own roles"),
+    RBAC_LAST_ADMIN(HttpStatus.CONFLICT, "Last administrator"),
+
+    // ----- User management (Phase 3) -----
+    USER_SELF_ACTION_DENIED(HttpStatus.FORBIDDEN, "Not allowed on your own account"),
+    USER_INVALID_STATUS(HttpStatus.CONFLICT, "Not allowed in the account's current status");
 
     private final HttpStatus status;
     private final String title;

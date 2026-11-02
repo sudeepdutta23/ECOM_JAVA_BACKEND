@@ -41,6 +41,8 @@ import org.springframework.test.web.servlet.ResultActions;
 @Import({SecurityConfig.class, RefreshTokenCookie.class})
 class AuthControllerTest {
 
+    private static final java.util.UUID SESSION = java.util.UUID.randomUUID();
+
     private static final String VALID_TOKEN = "q2vQ8m1f0xY3bS9kLw7pT4rN6uC5aE2dH8jK1zR0sVg";
 
     @Autowired
@@ -138,7 +140,7 @@ class AuthControllerTest {
     void loginReturnsAccessTokenInBodyAndRefreshTokenOnlyInCookie() throws Exception {
         when(authentication.login(eq("alice@example.com"), eq("Correct-Horse-9-Battery"), any()))
                 .thenReturn(new LoginResult(new AccessToken("header.payload.sig", Instant.now().plusSeconds(900), 900),
-                        new IssuedRefreshToken("raw-refresh-value", Instant.now().plusSeconds(604800))));
+                        new IssuedRefreshToken("raw-refresh-value", Instant.now().plusSeconds(604800), SESSION)));
 
         postJson("/api/v1/auth/login", """
                 {"email":"alice@example.com","password":"Correct-Horse-9-Battery"}""")
@@ -159,7 +161,7 @@ class AuthControllerTest {
     void loginPassesClientIpAndUserAgent() throws Exception {
         when(authentication.login(anyString(), anyString(), any()))
                 .thenReturn(new LoginResult(new AccessToken("t", Instant.now(), 900),
-                        new IssuedRefreshToken("r", Instant.now())));
+                        new IssuedRefreshToken("r", Instant.now(), SESSION)));
 
         mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .header("User-Agent", "Firefox/130")
@@ -211,7 +213,7 @@ class AuthControllerTest {
     void refreshReadsTheCookieAndSetsANewOne() throws Exception {
         when(authentication.refresh(eq("old-cookie-value"), any()))
                 .thenReturn(new LoginResult(new AccessToken("new.jwt.sig", Instant.now().plusSeconds(900), 900),
-                        new IssuedRefreshToken("new-cookie-value", Instant.now().plusSeconds(604800))));
+                        new IssuedRefreshToken("new-cookie-value", Instant.now().plusSeconds(604800), SESSION)));
 
         mockMvc.perform(post("/api/v1/auth/refresh").cookie(new Cookie("refresh_token", "old-cookie-value")))
                 .andExpect(status().isOk())
@@ -222,7 +224,7 @@ class AuthControllerTest {
     @Test
     void refreshWorksEvenWithAnExpiredAccessTokenAttached() throws Exception {
         when(authentication.refresh(any(), any()))
-                .thenReturn(new LoginResult(new AccessToken("t", Instant.now(), 900), new IssuedRefreshToken("r", Instant.now())));
+                .thenReturn(new LoginResult(new AccessToken("t", Instant.now(), 900), new IssuedRefreshToken("r", Instant.now(), SESSION)));
 
         mockMvc.perform(post("/api/v1/auth/refresh")
                         .header("Authorization", "Bearer expired.or.garbage")

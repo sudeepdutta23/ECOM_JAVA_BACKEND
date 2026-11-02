@@ -2,12 +2,18 @@ package com.ecommerce.backend.auth.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.ecommerce.backend.rbac.service.AuthorizationService;
+import com.ecommerce.backend.rbac.service.UserAuthorities;
 import com.nimbusds.jose.jwk.RSAKey;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -24,9 +30,15 @@ class AccessTokenIssuerTest {
 
     private final RSAKey key = RsaKeyLoader.generate();
     private final JwtConfig config = new JwtConfig();
+    private final AuthorizationService authorization = mock(AuthorizationService.class);
+
+    {
+        when(authorization.authoritiesOf(any())).thenReturn(
+                UserAuthorities.of(Set.of("ADMIN", "CUSTOMER"), Set.of("role:write", "role:read")));
+    }
 
     private AccessTokenIssuer issuerAt(Instant instant) {
-        return new AccessTokenIssuer(config.jwtEncoder(key), PROPS, key, Clock.fixed(instant, ZoneOffset.UTC));
+        return new AccessTokenIssuer(config.jwtEncoder(key), PROPS, key, authorization, Clock.fixed(instant, ZoneOffset.UTC));
     }
 
     private JwtDecoder decoderAt(Instant instant) throws Exception {
@@ -37,7 +49,7 @@ class AccessTokenIssuerTest {
     void issuedTokenCarriesExpectedClaims() throws Exception {
         UUID userId = UUID.randomUUID();
 
-        AccessToken token = issuerAt(NOW).issue(userId);
+        AccessToken token = issuerAt(NOW).issue(userId, UUID.randomUUID());
         Jwt jwt = decoderAt(NOW).decode(token.value());
 
         assertThat(jwt.getSubject()).isEqualTo(userId.toString());
@@ -52,9 +64,36 @@ class AccessTokenIssuerTest {
 
     @Test
     void tokenCarriesNoPersonalData() throws Exception {
-        Jwt jwt = decoderAt(NOW).decode(issuerAt(NOW).issue(UUID.randomUUID()).value());
+        Jwt jwt = decoderAt(NOW).decode(issuerAt(NOW).issue(UUID.randomUUID(), UUID.randomUUID()).value());
 
-        assertThat(jwt.getClaims()).containsOnlyKeys("iss", "sub", "iat", "nbf", "exp", "jti");
+        assertThat(jwt.getClaims()).containsOnlyKeys("iss", "sub", "iat", "nbf", "exp", "jti", "roles", "perms", "sid");
+    }
+
+    @Test
+    void tokenNamesItsSession() throws Exception {
+        UUID session = UUID.randomUUID();
+
+        Jwt jwt = decoderAt(NOW).decode(issuerAt(NOW).issue(UUID.randomUUID(), session).value());
+
+        assertThat(jwt.getClaimAsString("sid")).isEqualTo(session.toString());
+    }
+
+    @Test
+    void tokenCarriesSortedRolesAndPermissions() throws Exception {
+        Jwt jwt = decoderAt(NOW).decode(issuerAt(NOW).issue(UUID.randomUUID(), UUID.randomUUID()).value());
+
+        assertThat(jwt.getClaimAsStringList("roles")).containsExactly("ADMIN", "CUSTOMER");
+        assertThat(jwt.getClaimAsStringList("perms")).containsExactly("role:read", "role:write");
+    }
+
+    @Test
+    void userWithoutRolesGetsEmptyLists() throws Exception {
+        when(authorization.authoritiesOf(any())).thenReturn(UserAuthorities.none());
+
+        Jwt jwt = decoderAt(NOW).decode(issuerAt(NOW).issue(UUID.randomUUID(), UUID.randomUUID()).value());
+
+        assertThat(jwt.getClaimAsStringList("roles")).isEmpty();
+        assertThat(jwt.getClaimAsStringList("perms")).isEmpty();
     }
 
     @Test
@@ -62,15 +101,15 @@ class AccessTokenIssuerTest {
         AccessTokenIssuer issuer = issuerAt(NOW);
         UUID userId = UUID.randomUUID();
 
-        String first = decoderAt(NOW).decode(issuer.issue(userId).value()).getId();
-        String second = decoderAt(NOW).decode(issuer.issue(userId).value()).getId();
+        String first = decoderAt(NOW).decode(issuer.issue(userId, UUID.randomUUID()).value()).getId();
+        String second = decoderAt(NOW).decode(issuer.issue(userId, UUID.randomUUID()).value()).getId();
 
         assertThat(first).isNotEqualTo(second);
     }
 
     @Test
     void tokenIsAcceptedWithinClockSkewAfterExpiry() throws Exception {
-        AccessToken token = issuerAt(NOW).issue(UUID.randomUUID());
+        AccessToken token = issuerAt(NOW).issue(UUID.randomUUID(), UUID.randomUUID());
 
         Instant justAfterExpiry = token.expiresAt().plusSeconds(20); // skew is 30 s
         assertThat(decoderAt(justAfterExpiry).decode(token.value())).isNotNull();
@@ -78,7 +117,7 @@ class AccessTokenIssuerTest {
 
     @Test
     void expiredTokenIsRejected() throws Exception {
-        AccessToken token = issuerAt(NOW).issue(UUID.randomUUID());
+        AccessToken token = issuerAt(NOW).issue(UUID.randomUUID(), UUID.randomUUID());
         JwtDecoder later = decoderAt(token.expiresAt().plusSeconds(31));
 
         assertThatThrownBy(() -> later.decode(token.value()))
@@ -90,8 +129,8 @@ class AccessTokenIssuerTest {
     void tokenSignedByAnotherKeyIsRejected() throws Exception {
         RSAKey otherKey = RsaKeyLoader.generate();
         AccessTokenIssuer attacker = new AccessTokenIssuer(config.jwtEncoder(otherKey), PROPS, otherKey,
-                Clock.fixed(NOW, ZoneOffset.UTC));
-        String forged = attacker.issue(UUID.randomUUID()).value();
+                authorization, Clock.fixed(NOW, ZoneOffset.UTC));
+        String forged = attacker.issue(UUID.randomUUID(), UUID.randomUUID()).value();
         JwtDecoder decoder = decoderAt(NOW);
 
         assertThatThrownBy(() -> decoder.decode(forged)).isInstanceOf(JwtException.class);
@@ -99,7 +138,7 @@ class AccessTokenIssuerTest {
 
     @Test
     void toStringHidesTheTokenValue() {
-        AccessToken token = issuerAt(NOW).issue(UUID.randomUUID());
+        AccessToken token = issuerAt(NOW).issue(UUID.randomUUID(), UUID.randomUUID());
 
         assertThat(token.toString()).doesNotContain(token.value());
     }

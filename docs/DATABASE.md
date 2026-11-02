@@ -43,14 +43,17 @@ users 1 ──────< refresh_tokens        (ON DELETE CASCADE)
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | id | UUID | no | PK, UUID v7 from the app |
-| email | VARCHAR(254) | no | Unique; CHECK trimmed and lower-case |
+| email | VARCHAR(254) | no | Unique (index with `varchar_pattern_ops` since V4); CHECK trimmed and lower-case |
 | password_hash | VARCHAR(255) | no | `{argon2}...` |
-| status | VARCHAR(32) | no | PENDING_VERIFICATION, ACTIVE, DEACTIVATED |
+| status | VARCHAR(32) | no | PENDING_VERIFICATION, ACTIVE, DEACTIVATED, SUSPENDED (V4) |
 | email_verified_at | TIMESTAMPTZ | yes | Required when ACTIVE |
 | failed_login_count | INTEGER | no | Default 0, never negative |
 | locked_until | TIMESTAMPTZ | yes | Temporary lockout end |
 | last_login_at | TIMESTAMPTZ | yes | |
 | password_changed_at | TIMESTAMPTZ | no | |
+| status_reason | VARCHAR(500) | yes | V4. Internal note; required and non-blank when SUSPENDED |
+| status_changed_at | TIMESTAMPTZ | yes | V4. Null for statuses set before V4 |
+| status_changed_by | UUID | yes | V4. FK users, ON DELETE SET NULL |
 | version | BIGINT | no | Optimistic locking |
 | created_at, updated_at | TIMESTAMPTZ | no | |
 
@@ -92,7 +95,7 @@ users 1 ──────< refresh_tokens        (ON DELETE CASCADE)
 | `idx_account_tokens_user_purpose` | Invalidate previous tokens; cascade delete |
 | `idx_account_tokens_expires_at` | Cleanup job |
 
-No index on `users.status`: three values, so an index would rarely be chosen by the planner and would slow every write.
+No index on `users.status` alone: a handful of values, so the planner would rarely choose it. V4 adds the composite `(status, id)` instead, which serves "filter by status, newest first" for the admin list (see Phase 3 below).
 
 ### Tables considered and deferred
 
@@ -105,7 +108,41 @@ No index on `users.status`: three values, so an index would rarely be chosen by 
 
 ### Soft delete
 
-`users` has no `deleted_at`. Deactivation is a status change and keeps the row. Real deletion for privacy requests arrives in Phase 3 and cascades to tokens.
+`users` has no `deleted_at`. Deactivation and suspension are status changes and keep the row. Erasure for privacy requests (Phase 3, step 3.5) anonymises the row instead of deleting it, so later references such as orders stay valid.
+
+## Entity relationships (Phase 2, RBAC)
+
+```
+users 1 ──< user_roles >── 1 roles 1 ──< role_permissions >── 1 permissions
+                 └── assigned_by ──> users (nullable)
+```
+
+| Table | Primary key | Notable constraints |
+|---|---|---|
+| permissions | `code` (natural key) | CHECK `resource:action` lower case |
+| roles | `id` UUID | `uk_roles_code`; CHECK upper snake case; non-blank name; `version` for optimistic locking |
+| role_permissions | (`role_id`, `permission_code`) | Cascade with role; RESTRICT deleting a granted permission |
+| user_roles | (`user_id`, `role_id`) | Cascade with user; RESTRICT deleting an assigned role; `assigned_by` SET NULL |
+
+| Index | Serves |
+|---|---|
+| `pk_role_permissions` | Permissions of a role (leading column) |
+| `idx_role_permissions_permission_code` | Roles granting a permission; RESTRICT check |
+| `pk_user_roles` | Roles of a user, at every login and refresh |
+| `idx_user_roles_role_id` | Holders of a role, e.g. counting admins |
+| `idx_user_roles_assigned_by` | Avoids a full scan when a user is deleted (SET NULL) |
+
+V3 is the first migration that changes existing data: it backfills `CUSTOMER` for every existing user. `RbacSchemaIT` replays the upgrade from V2 in a scratch schema to prove it.
+
+## Phase 3 changes (V4, user management)
+
+| Index | Serves |
+|---|---|
+| `uk_users_email` (rebuilt with `varchar_pattern_ops`) | Login, uniqueness AND admin prefix search (`LIKE 'ali%'`). A default-collation index cannot serve prefix `LIKE`; rebuilding the one index avoids a second index on the same column |
+| `idx_users_status_id (status, id)` | Admin list filtered by status, newest first; also the active-admin count, as an index-only scan |
+| `idx_users_status_changed_by` | Avoids a full scan when a user is deleted (SET NULL) |
+
+Newest-first ordering uses `id`, not `created_at`: UUID v7 IDs are time-ordered, so the primary key already sorts by creation time.
 
 ## Migration history
 
@@ -113,3 +150,5 @@ No index on `users.status`: three values, so an index would rarely be chosen by 
 |---|---|
 | V1 | Baseline, no objects |
 | V2 | users, refresh_tokens, account_tokens |
+| V3 | permissions, roles, role_permissions, user_roles; seed CUSTOMER and ADMIN; backfill CUSTOMER |
+| V4 | `user:read`, `user:manage` for ADMIN; SUSPENDED status with reason, time and actor; admin revoke reasons; list and search indexes |

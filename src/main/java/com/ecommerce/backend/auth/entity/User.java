@@ -11,6 +11,7 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -61,6 +62,17 @@ public class User extends BaseEntity {
 
     @Column(name = "password_changed_at", nullable = false)
     private Instant passwordChangedAt;
+
+    /** Internal note for the latest status change; required for SUSPENDED. Never shown to the owner or logged. */
+    @Column(name = "status_reason", length = 500)
+    private String statusReason;
+
+    @Column(name = "status_changed_at")
+    private Instant statusChangedAt;
+
+    /** Who made the latest status change: the owner (deactivation) or an administrator. */
+    @Column(name = "status_changed_by")
+    private UUID statusChangedBy;
 
     /** Optimistic lock: a stale concurrent update fails instead of silently overwriting. */
     @Version
@@ -135,8 +147,43 @@ public class User extends BaseEntity {
         this.lockedUntil = null;
     }
 
-    public void deactivate() {
-        this.status = UserStatus.DEACTIVATED;
+    /** The owner closes their own account. */
+    public void deactivate(Instant now) {
+        changeStatus(UserStatus.DEACTIVATED, null, getId(), now);
+    }
+
+    /**
+     * An administrator blocks the account. Only active accounts can be suspended: a pending one
+     * cannot sign in anyway, and its verification link could then never apply.
+     */
+    public void suspend(String reason, UUID by, Instant now) {
+        requireStatus(UserStatus.ACTIVE);
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("A suspension needs a reason");
+        }
+        changeStatus(UserStatus.SUSPENDED, reason.strip(), Objects.requireNonNull(by, "by"), now);
+    }
+
+    /** An administrator reopens a suspended or self-deactivated account. */
+    public void reactivate(UUID by, Instant now) {
+        requireStatus(UserStatus.SUSPENDED, UserStatus.DEACTIVATED);
+        changeStatus(UserStatus.ACTIVE, null, Objects.requireNonNull(by, "by"), now);
+    }
+
+    private void requireStatus(UserStatus... allowed) {
+        for (UserStatus candidate : allowed) {
+            if (status == candidate) {
+                return;
+            }
+        }
+        throw new IllegalStateException("Status " + status + " does not allow this change");
+    }
+
+    private void changeStatus(UserStatus newStatus, String reason, UUID by, Instant now) {
+        this.status = newStatus;
+        this.statusReason = reason;
+        this.statusChangedBy = by;
+        this.statusChangedAt = Objects.requireNonNull(now, "now");
     }
 
     /** Never include the password hash or email: toString ends up in logs. */

@@ -1,20 +1,29 @@
 package com.ecommerce.backend.auth.repository;
 
 import com.ecommerce.backend.auth.entity.User;
+import com.ecommerce.backend.auth.entity.UserStatus;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface UserRepository extends JpaRepository<User, UUID> {
+/**
+ * {@link JpaSpecificationExecutor} adds {@code findAll(Specification, Pageable)} for the admin list
+ * ({@link UserSearch}): one page query plus one count query, both with only the filters in use.
+ */
+public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
 
     /** Callers must pass an already-normalized email ({@link User#normalizeEmail}). */
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    long countByIdInAndStatus(Collection<UUID> ids, UserStatus status);
 
     /** DTO projection: a constructor expression selects only the listed columns. */
     @Query("""
@@ -72,6 +81,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             where u.id = :id
             """)
     int recordSuccessfulLogin(@Param("id") UUID id, @Param("now") Instant now);
+
+    /**
+     * An administrator ends a temporary lockout. Atomic, like {@link #recordSuccessfulLogin}: it
+     * cannot conflict with concurrent failed logins on the version column, and a failure counted
+     * at the same instant is simply reset too, which is what "unlock" means.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update User u set u.failedLoginCount = 0, u.lockedUntil = null, u.updatedAt = :now where u.id = :id")
+    int clearLockout(@Param("id") UUID id, @Param("now") Instant now);
 
     /** Replaces an outdated hash (old algorithm or parameters) after a successful login. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)

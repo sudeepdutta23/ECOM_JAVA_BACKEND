@@ -45,6 +45,18 @@ public class AuthTestClient {
         return rest.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
     }
 
+    /** Any method, optional JSON body, optional bearer token. */
+    public ResponseEntity<String> send(HttpMethod method, String path, Object body, String accessToken) {
+        HttpHeaders headers = new HttpHeaders();
+        if (body != null) {
+            headers.setContentType(MediaType.APPLICATION_JSON);
+        }
+        if (accessToken != null) {
+            headers.setBearerAuth(accessToken);
+        }
+        return rest.exchange(path, method, new HttpEntity<>(body, headers), String.class);
+    }
+
     public ResponseEntity<String> get(String path, String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         if (accessToken != null) {

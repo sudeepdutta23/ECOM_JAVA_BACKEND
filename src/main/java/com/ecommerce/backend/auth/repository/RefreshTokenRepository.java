@@ -4,6 +4,7 @@ import com.ecommerce.backend.auth.entity.RefreshToken;
 import com.ecommerce.backend.auth.entity.RevokeReason;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -50,4 +51,43 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
                                   @Param("now") Instant now);
 
     long countByUser_IdAndRevokedAtIsNull(UUID userId);
+
+    /** Active sessions: rotation keeps exactly one live token per family. Served by {@code idx_refresh_tokens_user_id}. */
+    long countByUser_IdAndRevokedAtIsNullAndExpiresAtAfter(UUID userId, Instant now);
+
+    /** One signed-in device, for {@code GET /me/sessions}. Aliases are quoted: PostgreSQL lower-cases unquoted ones. */
+    interface SessionRow {
+        UUID getSessionId();
+
+        Instant getStartedAt();
+
+        Instant getLastActiveAt();
+
+        Instant getExpiresAt();
+
+        String getIp();
+
+        String getUserAgent();
+    }
+
+    /**
+     * A user's live sessions, newest activity first, in one query.
+     *
+     * <p>Rotation leaves exactly one live token per family, so each live token is one session. Its
+     * own {@code issued_at}, IP and user agent describe the LAST refresh; the family's oldest
+     * token gives the sign-in time. Both parts read {@code idx_refresh_tokens_user_id}.
+     */
+    @Query(value = """
+            SELECT t.family_id AS "sessionId", f.started_at AS "startedAt", t.issued_at AS "lastActiveAt",
+                   t.expires_at AS "expiresAt", t.created_ip AS "ip", t.user_agent AS "userAgent"
+            FROM refresh_tokens t
+            JOIN (SELECT family_id, min(issued_at) AS started_at
+                  FROM refresh_tokens WHERE user_id = :userId GROUP BY family_id) f ON f.family_id = t.family_id
+            WHERE t.user_id = :userId AND t.revoked_at IS NULL AND t.expires_at > :now
+            ORDER BY t.issued_at DESC, t.family_id
+            """, nativeQuery = true)
+    List<SessionRow> findActiveSessions(@Param("userId") UUID userId, @Param("now") Instant now);
+
+    /** Ownership check before ending a session: a family ID alone proves nothing. */
+    boolean existsByFamilyIdAndUser_Id(UUID familyId, UUID userId);
 }

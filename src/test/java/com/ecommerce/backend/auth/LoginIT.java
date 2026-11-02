@@ -252,6 +252,19 @@ class LoginIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void suspendedAccountCannotLogInAndNeverSeesTheReason() {
+        String email = uniqueEmail();
+        client.registerAndVerify(email);
+        jdbc.update("UPDATE users SET status = 'SUSPENDED', status_reason = 'Internal: chargeback ring' WHERE email = ?", email);
+
+        ResponseEntity<String> response = client.login(email, PASSWORD);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getBody()).contains("\"code\":\"AUTH_ACCOUNT_DISABLED\"").contains("suspended")
+                .doesNotContain("chargeback");
+    }
+
+    @Test
     void legacyBcryptHashIsUpgradedToArgon2OnLogin() {
         String email = uniqueEmail();
         jdbc.update("""

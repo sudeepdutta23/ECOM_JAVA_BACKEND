@@ -7,6 +7,7 @@ import com.ecommerce.backend.auth.event.DuplicateRegistrationAttempted;
 import com.ecommerce.backend.auth.event.VerificationEmailRequested;
 import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.common.util.Masking;
+import com.ecommerce.backend.rbac.service.AuthorizationService;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -38,12 +39,13 @@ public class RegistrationService {
     private final ApplicationEventPublisher events;
     private final TransactionOperations transactions;
     private final AuthProperties properties;
+    private final AuthorizationService authorization;
     private final Clock clock;
 
     public RegistrationService(UserRepository users, AccountTokenService accountTokens,
                                PasswordPolicy passwordPolicy, PasswordEncoder passwordEncoder,
                                ApplicationEventPublisher events, TransactionOperations transactions,
-                               AuthProperties properties, Clock clock) {
+                               AuthProperties properties, AuthorizationService authorization, Clock clock) {
         this.users = users;
         this.accountTokens = accountTokens;
         this.passwordPolicy = passwordPolicy;
@@ -51,6 +53,7 @@ public class RegistrationService {
         this.events = events;
         this.transactions = transactions;
         this.properties = properties;
+        this.authorization = authorization;
         this.clock = clock;
     }
 
@@ -86,6 +89,8 @@ public class RegistrationService {
         // saveAndFlush: run the INSERT now, inside the try block above, so a unique
         // violation surfaces here rather than at commit time.
         User user = users.saveAndFlush(User.register(email, passwordHash, Instant.now(clock)));
+        // Same transaction: if anything below fails, the user and the role roll back together.
+        authorization.assignDefaultRole(user.getId());
         issueVerification(user);
         log.info("User registered: userId={}", user.getId());
     }
