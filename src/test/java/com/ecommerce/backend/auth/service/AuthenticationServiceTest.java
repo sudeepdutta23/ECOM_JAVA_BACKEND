@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -167,6 +168,17 @@ class AuthenticationServiceTest {
             assertThat(e.getMessage()).contains("suspended").doesNotContain("fraud").doesNotContain("4711");
         });
         verify(refreshTokens, never()).issueForNewLogin(any(), any());
+    }
+
+    @Test
+    void anErasedAccountLooksExactlyLikeAnUnknownEmail() {
+        user.erase(user.getId(), NOW);
+        when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user)); // someone types the placeholder
+
+        assertCode(() -> service.login(user.getEmail(), PASSWORD, CLIENT), ErrorCode.AUTH_INVALID_CREDENTIALS);
+        verify(encoder).matches(PASSWORD, DUMMY_HASH);
+        verify(encoder, never()).matches(any(), eq("{erased}")); // DelegatingPasswordEncoder would throw on it
+        verify(users, never()).registerFailedLogin(any(), anyInt(), any(), any());
     }
 
     @Test

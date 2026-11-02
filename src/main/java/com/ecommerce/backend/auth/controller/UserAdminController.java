@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Account administration (Phase 3): find, inspect, suspend, reactivate, unlock, sign out.
+ * Account administration (Phase 3): find, inspect, suspend, reactivate, unlock, sign out, erase.
  *
  * <p><b>No {@code Pageable} parameter.</b> Spring can bind {@code ?page&size&sort} straight into
  * one, but then clients choose any sort column, including unindexed ones, and any page size. The
@@ -119,5 +119,22 @@ public class UserAdminController {
             description = "Requires user:manage. Access tokens already issued expire within 15 minutes.")
     public ApiResponse<AdminUserDetail> signOut(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID userId) {
         return ApiResponse.success("Account signed out", users.signOut(CurrentUser.id(jwt), userId));
+    }
+
+    @PostMapping("/{userId}/erase")
+    @PreAuthorize("hasAuthority('" + Permissions.USER_ERASE + "')")
+    @Operation(summary = "Erase an account on its owner's request (irreversible)",
+            description = "Requires user:erase and every permission the account holds. Anonymises the account in any "
+                    + "status: email and password replaced, sessions, email links and roles deleted. The row and its "
+                    + "ID remain, with status ERASED.",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Erased"),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403",
+                            description = "FORBIDDEN, USER_SELF_ACTION_DENIED or RBAC_ESCALATION_DENIED"),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "RESOURCE_NOT_FOUND"),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409",
+                            description = "USER_INVALID_STATUS (already erased), RBAC_LAST_ADMIN or CONCURRENT_MODIFICATION")})
+    public ApiResponse<AdminUserDetail> erase(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID userId) {
+        return ApiResponse.success("Account erased", users.erase(CurrentUser.id(jwt), userId));
     }
 }

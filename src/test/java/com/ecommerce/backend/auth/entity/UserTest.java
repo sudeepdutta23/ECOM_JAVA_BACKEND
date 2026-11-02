@@ -153,6 +153,49 @@ class UserTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    void erasureRemovesEveryPersonalFieldAndKeepsTheRow() {
+        User user = activeUser();
+        user.recordSuccessfulLogin(NOW);
+        user.suspend("Fraud, see ticket about J. Doe", UUID.randomUUID(), NOW);
+        UUID admin = UUID.randomUUID();
+        Instant later = NOW.plusSeconds(60);
+
+        user.erase(admin, later);
+
+        assertThat(user.getStatus()).isEqualTo(UserStatus.ERASED);
+        assertThat(user.getEmail()).isEqualTo("erased-" + user.getId() + "@erased.invalid");
+        assertThat(user.getPasswordHash()).isEqualTo("{erased}");
+        assertThat(user.getEmailVerifiedAt()).isNull();
+        assertThat(user.getLastLoginAt()).isNull();
+        assertThat(user.getStatusReason()).isNull();
+        assertThat(user.getStatusChangedBy()).isEqualTo(admin);
+        assertThat(user.getStatusChangedAt()).isEqualTo(later);
+        // The placeholder is already normalized, as ck_users_email_normalized requires.
+        assertThat(User.normalizeEmail(user.getEmail())).isEqualTo(user.getEmail());
+    }
+
+    @Test
+    void erasureIsTerminal() {
+        User user = activeUser();
+        user.erase(user.getId(), NOW);
+
+        assertThatThrownBy(() -> user.erase(user.getId(), NOW)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> user.reactivate(UUID.randomUUID(), NOW)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> user.suspend("x", UUID.randomUUID(), NOW)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> user.verifyEmail(NOW)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void pendingAccountsCanBeErased() {
+        User pending = User.register("p@example.com", "{argon2}hash", NOW);
+        ReflectionTestUtils.setField(pending, "id", UUID.randomUUID());
+
+        pending.erase(UUID.randomUUID(), NOW);
+
+        assertThat(pending.isErased()).isTrue();
+    }
+
     private static User activeUser() {
         User user = User.register("a@example.com", "{argon2}hash", NOW);
         ReflectionTestUtils.setField(user, "id", UUID.randomUUID());

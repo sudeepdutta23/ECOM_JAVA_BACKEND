@@ -1,6 +1,7 @@
 package com.ecommerce.backend.auth.mail;
 
 import com.ecommerce.backend.auth.event.AccountDeactivated;
+import com.ecommerce.backend.auth.event.AccountErased;
 import com.ecommerce.backend.auth.event.AccountLocked;
 import com.ecommerce.backend.auth.event.DuplicateRegistrationAttempted;
 import com.ecommerce.backend.auth.event.PasswordChanged;
@@ -135,6 +136,18 @@ class AuthEmailListener {
                 Your account was deactivated and every device was signed out.
 
                 If you did not do this, contact support so we can secure your account.
+                """));
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onAccountErased(AccountErased event) {
+        send(new EmailMessage(event.email(), "Your account was erased", """
+                As requested, your account and the personal data stored with it were erased,
+                and every device was signed out. This cannot be undone.
+
+                This is the last email we send to this address. You are welcome to
+                register again at any time.
                 """));
     }
 

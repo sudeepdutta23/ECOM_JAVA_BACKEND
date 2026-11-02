@@ -426,6 +426,35 @@
               }
             }
           ]
+        },
+        {
+          "name": "Erase my account (irreversible)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/me/erase",
+            "description": "Bearer token required. Anonymises the account for good: email, password, sessions, email links and roles are removed. The email can be registered again. Use a throwaway account."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -775,6 +804,26 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erase user (irreversible)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/erase",
+            "description": "Requires user:erase. For a privacy request that reached support. Works in any status; a second call is 409 USER_INVALID_STATUS."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('erased', () => pm.expect(pm.response.json().data.status).to.eql('ERASED'));"
                 ]
               }
             }

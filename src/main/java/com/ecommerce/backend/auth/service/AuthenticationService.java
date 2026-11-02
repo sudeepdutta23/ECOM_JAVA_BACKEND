@@ -104,7 +104,9 @@ public class AuthenticationService {
     private LoginResult attemptLogin(String rawEmail, String password, ClientInfo client) {
         String email = User.normalizeEmail(rawEmail);
         Instant now = Instant.now(clock);
-        Optional<User> found = users.findByEmail(email);
+        // An erased account is gone as far as login is concerned: its placeholder email gets the same
+        // answer and timing as an unknown one, and its '{erased}' hash is never handed to the encoder.
+        Optional<User> found = users.findByEmail(email).filter(user -> !user.isErased());
 
         if (found.isEmpty()) {
             passwordEncoder.matches(password, dummyHash);
@@ -157,6 +159,7 @@ public class AuthenticationService {
                 yield new BusinessException(ErrorCode.AUTH_ACCOUNT_DISABLED,
                         "This account has been suspended. Please contact support.");
             }
+            case ERASED -> invalidCredentials(); // unreachable: the lookup above skips erased accounts
         };
     }
 

@@ -72,4 +72,24 @@ public class AccountController {
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.clear().toString())
                 .build();
     }
+
+    @PostMapping(path = "/erase", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Erase my account (irreversible)",
+            description = "Requires the current password. Removes the email, password, sessions, email links and "
+                    + "roles; the account cannot be restored, and the email can be registered again. A confirmation "
+                    + "is sent to the old address.",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Erased"),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",
+                            description = "VALIDATION_FAILED or AUTH_INVALID_CURRENT_PASSWORD"),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "UNAUTHORIZED"),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409",
+                            description = "RBAC_LAST_ADMIN: you are the last active administrator")})
+    public ResponseEntity<Void> erase(@AuthenticationPrincipal Jwt jwt,
+                                      @Valid @RequestBody PasswordConfirmationRequest request) {
+        accounts.erase(CurrentUser.id(jwt), request.password());
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.clear().toString())
+                .build();
+    }
 }

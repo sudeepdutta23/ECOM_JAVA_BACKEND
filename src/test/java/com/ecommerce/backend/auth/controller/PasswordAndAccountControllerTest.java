@@ -182,6 +182,24 @@ class PasswordAndAccountControllerTest {
     }
 
     @Test
+    void eraseClearsTheCookie() throws Exception {
+        mockMvc.perform(signedIn(json(post("/api/v1/auth/me/erase"), "{\"password\":\"Correct-Horse-9-Battery\"}")))
+                .andExpect(status().isNoContent())
+                .andExpect(header().string("Set-Cookie", containsString("Max-Age=0")));
+
+        verify(accounts).erase(USER_ID, "Correct-Horse-9-Battery");
+    }
+
+    @Test
+    void eraseRequiresThePassword() throws Exception {
+        mockMvc.perform(signedIn(json(post("/api/v1/auth/me/erase"), "{}")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("password"));
+
+        verifyNoInteractions(accounts);
+    }
+
+    @Test
     void deactivateRequiresThePassword() throws Exception {
         mockMvc.perform(signedIn(json(post("/api/v1/auth/me/deactivate"), "{}")))
                 .andExpect(status().isBadRequest())

@@ -15,6 +15,7 @@ public final class Permissions {
     public static final String ROLE_ASSIGN = "role:assign";
     public static final String USER_READ = "user:read";
     public static final String USER_MANAGE = "user:manage";
+    public static final String USER_ERASE = "user:erase";
 
     private Permissions() {
     }

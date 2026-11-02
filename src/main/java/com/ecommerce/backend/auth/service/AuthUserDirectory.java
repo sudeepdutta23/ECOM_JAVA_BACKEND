@@ -23,7 +23,7 @@ class AuthUserDirectory implements UserDirectory {
     @Override
     @Transactional(readOnly = true)
     public boolean exists(UUID userId) {
-        return users.existsById(userId);
+        return users.existsByIdAndStatusNot(userId, UserStatus.ERASED);
     }
 
     @Override

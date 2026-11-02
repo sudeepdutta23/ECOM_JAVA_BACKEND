@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>the account exists (404);</li>
  *   <li>you hold every permission the account holds (403 {@code RBAC_ESCALATION_DENIED});</li>
  *   <li>the action fits the current status (409 {@code USER_INVALID_STATUS});</li>
- *   <li>for suspension: not the last active administrator (409 {@code RBAC_LAST_ADMIN}).</li>
+ *   <li>for suspension and erasure: not the last active administrator (409 {@code RBAC_LAST_ADMIN}).</li>
  * </ol>
  *
  * <p>The suspension reason is an internal note: stored and shown to administrators, never logged.
@@ -53,16 +53,18 @@ public class UserAdminService {
     private final AuthorizationService authorization;
     private final RefreshTokenService sessions;
     private final RoleAssignmentService roleAssignments;
+    private final AccountEraser eraser;
     private final Clock clock;
 
     public UserAdminService(UserRepository users, RefreshTokenRepository refreshTokens,
                             AuthorizationService authorization, RefreshTokenService sessions,
-                            RoleAssignmentService roleAssignments, Clock clock) {
+                            RoleAssignmentService roleAssignments, AccountEraser eraser, Clock clock) {
         this.users = users;
         this.refreshTokens = refreshTokens;
         this.authorization = authorization;
         this.sessions = sessions;
         this.roleAssignments = roleAssignments;
+        this.eraser = eraser;
         this.clock = clock;
     }
 
@@ -134,6 +136,22 @@ public class UserAdminService {
         requireManageable(callerId, userId);
         int ended = sessions.revokeAll(userId, RevokeReason.ADMIN_SIGN_OUT);
         log.info("Account signed out by administrator: userId={}, by={}, sessionsEnded={}", userId, callerId, ended);
+        return get(userId);
+    }
+
+    /**
+     * Erases the account on its owner's behalf, for a request that reached support (the owner may no
+     * longer be able to sign in). Any status except ERASED; irreversible. Not idempotent on purpose:
+     * a second erasure is 409, so a mistyped ID cannot pass silently as "already done".
+     */
+    @Transactional
+    public AdminUserDetail erase(UUID callerId, UUID userId) {
+        User user = requireManageable(callerId, userId);
+        if (user.isErased()) {
+            throw invalidStatus(user, "it cannot be erased again");
+        }
+        AccountEraser.Erasure erasure = eraser.erase(user, callerId, Instant.now(clock));
+        log.info("Account erased by administrator: userId={}, by={}, {}", userId, callerId, erasure);
         return get(userId);
     }
 

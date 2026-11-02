@@ -77,4 +77,9 @@ public interface UserRoleRepository extends JpaRepository<UserRole, UserRole.Key
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from UserRole ur where ur.userId = :userId and ur.roleId = :roleId")
     int revoke(@Param("userId") UUID userId, @Param("roleId") UUID roleId);
+
+    /** Every role of a user, CUSTOMER included; only for erasure. Served by {@code pk_user_roles}. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from UserRole ur where ur.userId = :userId")
+    int revokeAll(@Param("userId") UUID userId);
 }

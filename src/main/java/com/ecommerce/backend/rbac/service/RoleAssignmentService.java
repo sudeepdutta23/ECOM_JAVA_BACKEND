@@ -146,16 +146,28 @@ public class RoleAssignmentService {
     }
 
     /**
-     * Called by the auth module before an account stops being active (deactivation now, admin
-     * suspension in Phase 3). Joins the caller's transaction, so the {@code ADMIN} row lock is held
-     * until the status change commits: two last admins deactivating at once cannot both succeed.
+     * Called by the auth module before an account stops being active: deactivation, suspension,
+     * erasure. Joins the caller's transaction, so the {@code ADMIN} row lock is held until the
+     * status change commits: two last admins deactivating at once cannot both succeed.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireCanLeave(UUID userId) {
         Role admin = roles.lockByCode(Role.ADMIN)
                 .orElseThrow(() -> new IllegalStateException("System role ADMIN is missing; check migration V3"));
         requireNotLastActiveAdmin(admin.getId(), userId,
-                "You are the last active administrator. Grant ADMIN to someone else before deactivating.");
+                "This is the last active administrator. Grant ADMIN to someone else first.");
+    }
+
+    /**
+     * Erasure: removes every role, {@code CUSTOMER} included, without the per-role rules of
+     * {@link #revoke}. The auth module has already applied {@link #requireCanLeave} and the
+     * escalation rule to the account as a whole, in this same transaction.
+     *
+     * @return the number of roles removed
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public int removeAllRoles(UUID userId) {
+        return userRoles.revokeAll(userId);
     }
 
     /** Refuses to take the count of active admins from at least one down to zero. */

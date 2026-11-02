@@ -34,4 +34,9 @@ public interface AccountTokenRepository extends JpaRepository<AccountToken, UUID
     int consumeAllActive(@Param("userId") UUID userId,
                          @Param("purpose") TokenPurpose purpose,
                          @Param("now") Instant now);
+
+    /** Erasure: every email link of the user, used or not. Served by {@code idx_account_tokens_user_purpose}. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from AccountToken t where t.user.id = :userId")
+    int deleteAllByUserId(@Param("userId") UUID userId);
 }

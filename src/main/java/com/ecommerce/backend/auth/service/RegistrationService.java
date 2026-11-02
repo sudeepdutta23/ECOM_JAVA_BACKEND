@@ -6,6 +6,7 @@ import com.ecommerce.backend.auth.entity.UserStatus;
 import com.ecommerce.backend.auth.event.DuplicateRegistrationAttempted;
 import com.ecommerce.backend.auth.event.VerificationEmailRequested;
 import com.ecommerce.backend.auth.repository.UserRepository;
+import com.ecommerce.backend.common.exception.RequestValidationException;
 import com.ecommerce.backend.common.util.Masking;
 import com.ecommerce.backend.rbac.service.AuthorizationService;
 import java.time.Clock;
@@ -68,6 +69,10 @@ public class RegistrationService {
      */
     public void register(String rawEmail, String password) {
         String email = User.normalizeEmail(rawEmail);
+        if (User.isReservedEmail(email)) {
+            // Safe to say: it reveals nothing about which accounts exist.
+            throw RequestValidationException.of("email", "must not use the reserved .invalid domain");
+        }
         passwordPolicy.validate("password", password, email);
         String passwordHash = passwordEncoder.encode(password);
 

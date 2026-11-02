@@ -14,6 +14,7 @@ import java.util.UUID;
  */
 public interface UserDirectory {
 
+    /** False for unknown and for erased accounts: an erased account can hold no roles again. */
     boolean exists(UUID userId);
 
     /** How many of the given users can currently sign in. */

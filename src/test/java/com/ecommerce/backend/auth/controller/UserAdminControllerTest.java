@@ -114,6 +114,19 @@ class UserAdminControllerTest {
     }
 
     @Test
+    void eraseNeedsUserEraseNotJustManage() throws Exception {
+        UUID target = UUID.randomUUID();
+
+        mockMvc.perform(asManager(post(USERS + "/" + target + "/erase"))).andExpect(status().isForbidden());
+        verifyNoInteractions(users);
+
+        mockMvc.perform(post(USERS + "/" + target + "/erase").with(jwt().jwt(j -> j.subject(MANAGER.toString()))
+                        .authorities(new SimpleGrantedAuthority("user:erase"))))
+                .andExpect(status().isOk());
+        verify(users).erase(MANAGER, target);
+    }
+
+    @Test
     void invalidStatusIs409WithItsCode() throws Exception {
         UUID target = UUID.randomUUID();
         when(users.reactivate(MANAGER, target))
@@ -176,7 +189,7 @@ class UserAdminControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.errors[0].field").value("status"))
                 .andExpect(jsonPath("$.errors[0].message")
-                        .value("must be one of [PENDING_VERIFICATION, ACTIVE, DEACTIVATED, SUSPENDED]"));
+                        .value("must be one of [PENDING_VERIFICATION, ACTIVE, DEACTIVATED, SUSPENDED, ERASED]"));
     }
 
     @Test

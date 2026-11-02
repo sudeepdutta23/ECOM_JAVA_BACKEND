@@ -44,7 +44,7 @@ Surefire runs `*Test`. Failsafe runs `*IT`.
 | `AccountTokenServiceTest`, `RegistrationServiceTest` | Token issue/consume rules; registration branches incl. duplicate and race handling |
 | `AuthControllerTest` | HTTP contract: 202/200, validation, unknown fields, JSON-only |
 | `RegistrationIT` | Full journey with async email: register, verify once, resend, duplicates, weak password, 5 parallel registrations |
-| `AuthenticationServiceTest`, `RefreshTokenServiceTest`, `RefreshTokenCookieTest` | Every login branch, dummy-hash timing, lock notification, hash upgrade, cookie attributes |
+| `AuthenticationServiceTest`, `RefreshTokenServiceTest`, `RefreshTokenCookieTest` | Every login branch, dummy-hash timing, lock notification, hash upgrade, cookie attributes; refresh locks the account before the token and trusts the status read under that lock |
 | `SessionIT` | Rotation chains, theft replay kills the family and emails the owner, other devices unaffected, 5-way refresh race, logout, logout-all, access token lifetime after logout |
 | `PasswordServiceTest`, `AccountServiceTest`, `PasswordAndAccountControllerTest` | Change/forgot/reset branches, lockout on wrong current password, token not burned on policy failure, `/me` allow-list, deactivation |
 | `AccountLifecycleIT` | Change keeps this device and ends others, lockout via change endpoint, full forgot/reset, single-use and expiring links, reset unlocks, `/me`, deactivation |
@@ -52,12 +52,13 @@ Surefire runs `*Test`. Failsafe runs `*IT`.
 | `RateLimitIT` | Real filter chain in its own context: 11th login and 6th email-sending call refused |
 | `SecurityIT` (CORS and headers) | Allowed and refused preflights, exposed headers, CSP on API but not Swagger UI, Permissions-Policy |
 | `AuthJourneyIT` | One user's full life cycle, plus an audit of all log output: no password, token, hash or full email anywhere |
-| `QueryPlanIT` | `EXPLAIN` of 21 hot auth, rbac and user-admin queries (with seq scans disabled) proves each one can use its index |
+| `QueryPlanIT` | `EXPLAIN` of 24 hot auth, rbac and user-admin queries (with seq scans disabled, over 5 000 synthetic accounts loaded for the class and removed after) proves each one uses its index. Without the volume, equal costs on tiny tables made the chosen index depend on test order |
 | `UserSearchTest`, `UserAdminControllerTest` | LIKE escaping; defaults, size cap and page validation reported per parameter, enum values listed without Java type names, `user:read` required |
 | `UserAdminIT` | Case-insensitive prefix search newest first, `%` and `_` matched literally, page totals and past-the-end, combined filters, no credentials in responses, detail with roles, sessions, lock and status change |
 | `UserAdminServiceTest` | Order of checks (manage rule, last admin, then revoke), self-action, escalation, invalid status, nothing changes on refusal, atomic unlock, sign-out reason |
 | `UserAdminActionsIT` | Suspension ends sessions and blocks sign-in without revealing the reason (also not in logs), reactivation after suspension and self-deactivation, unlock after a real lockout, sign-out of two devices, a support role limited to customers, last admin kept |
 | `SessionServiceTest`, `SessionsIT` | One session per sign-in, `current` from the `sid` claim, same ID across rotation, ending another device only, ending the current one like logout, 404 for other users' sessions, logout-all empties the list |
+| `AccountErasureIT` | Owner and admin erasure down to the rows: placeholder email, `{erased}` hash, no tokens, links or roles; old email and placeholder both get 401 (no 500); the email registers again as a new account; confirmation mail; no email in logs; `user:manage` is not enough; second erasure 409; no role grants to an erased account; last admin kept; the V5 CHECK rejects an `ERASED` row that still holds data; a placeholder cannot be registered (400, and the V6 CHECK); an erasure waits for a refresh in progress and deletes its new token |
 | `UserManagementSchemaIT` | V4: suspension needs a reason, status and revoke-reason checks, SET NULL on the actor, ADMIN holds `user:*`, one email index serving equality and prefix |
 | `BoundedPasswordEncoderTest` | Concurrency cap honoured, fails fast with 503, permits always returned |
 | `RbacSchemaIT` | V3 constraints, seed data, and the V2-to-V3 upgrade backfill in a scratch schema |
@@ -68,6 +69,7 @@ Surefire runs `*Test`. Failsafe runs `*IT`.
 | `RoleManagementIT` | Full CRUD, lost-update protection, an editor without `role:assign` blocked from granting or stripping it, holders gaining permissions at refresh |
 | `RoleAssignmentServiceTest`, `UserRoleControllerTest` | Self-modification, escalation in both directions, CUSTOMER kept, last active admin, lock taken before checks, bootstrap outcomes; 204/403/409 contract and `role:assign` required |
 | `RoleAssignmentIT` | Grant and revoke idempotent and visible after refresh, 404s, an assigner limited to its own power, last admin kept, two admins demoting each other at once leave one, bootstrap only while no active admin exists |
+| `UserAdministrationJourneyIT` | Phase 3 as one story: support role without erase, own sessions, prefix search, suspend and reactivate, lockout and unlock, admin sign-out, self-erasure, plus a log audit (no tokens, emails or suspension reason) |
 | `AdminJourneyIT` | Phase 2 as one story: bootstrap, delegation, the only admin cannot leave, hand-over, stale token refused for management, deactivation rules, plus a log audit |
 | `LoginIT` | Tokens and cookie over HTTP, hashed storage, identical failure bodies, lockout and expiry, one lock email, parallel guessing, BCrypt upgrade |
 

@@ -15,6 +15,8 @@ import com.ecommerce.backend.auth.dto.AdminUserDetail;
 import com.ecommerce.backend.auth.entity.RevokeReason;
 import com.ecommerce.backend.auth.entity.User;
 import com.ecommerce.backend.auth.entity.UserStatus;
+import com.ecommerce.backend.auth.event.AccountErased;
+import com.ecommerce.backend.auth.repository.AccountTokenRepository;
 import com.ecommerce.backend.auth.repository.RefreshTokenRepository;
 import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.common.exception.BusinessException;
@@ -31,6 +33,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class UserAdminServiceTest {
@@ -43,8 +46,11 @@ class UserAdminServiceTest {
     private final AuthorizationService authorization = mock(AuthorizationService.class);
     private final RefreshTokenService sessions = mock(RefreshTokenService.class);
     private final RoleAssignmentService roleAssignments = mock(RoleAssignmentService.class);
+    private final AccountTokenRepository accountTokens = mock(AccountTokenRepository.class);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+    private final AccountEraser eraser = new AccountEraser(refreshTokens, accountTokens, roleAssignments, events);
     private final UserAdminService service = new UserAdminService(users, refreshTokens, authorization, sessions,
-            roleAssignments, Clock.fixed(NOW, ZoneOffset.UTC));
+            roleAssignments, eraser, Clock.fixed(NOW, ZoneOffset.UTC));
 
     private User target;
 
@@ -99,7 +105,8 @@ class UserAdminServiceTest {
         assertCode(() -> service.reactivate(self, self), ErrorCode.USER_SELF_ACTION_DENIED);
         assertCode(() -> service.unlock(self, self), ErrorCode.USER_SELF_ACTION_DENIED);
         assertCode(() -> service.signOut(self, self), ErrorCode.USER_SELF_ACTION_DENIED);
-        verifyNoInteractions(sessions, roleAssignments);
+        assertCode(() -> service.erase(self, self), ErrorCode.USER_SELF_ACTION_DENIED);
+        verifyNoInteractions(sessions, roleAssignments, accountTokens);
     }
 
     @Test
@@ -110,8 +117,10 @@ class UserAdminServiceTest {
         assertCode(() -> service.suspend(ADMIN, target.getId(), "x"), ErrorCode.RBAC_ESCALATION_DENIED);
         assertCode(() -> service.signOut(ADMIN, target.getId()), ErrorCode.RBAC_ESCALATION_DENIED);
         assertCode(() -> service.unlock(ADMIN, target.getId()), ErrorCode.RBAC_ESCALATION_DENIED);
+        assertCode(() -> service.erase(ADMIN, target.getId()), ErrorCode.RBAC_ESCALATION_DENIED);
         verify(users, never()).clearLockout(any(), any());
-        verifyNoInteractions(sessions);
+        verifyNoInteractions(sessions, accountTokens);
+        assertThat(target.isErased()).isFalse();
     }
 
     @Test
@@ -152,6 +161,45 @@ class UserAdminServiceTest {
 
         verify(sessions).revokeAll(target.getId(), RevokeReason.ADMIN_SIGN_OUT);
         assertThat(target.isActive()).isTrue();
+    }
+
+    // ------------------------------------------------------------------ erase
+
+    @Test
+    void eraseWorksFromAnyStatusAndChecksBeforeDeleting() {
+        target.suspend("Chargeback fraud", ADMIN, NOW.minusSeconds(60));
+
+        AdminUserDetail detail = service.erase(ADMIN, target.getId());
+
+        assertThat(detail.status()).isEqualTo(UserStatus.ERASED);
+        assertThat(detail.email()).isEqualTo("erased-" + target.getId() + "@erased.invalid");
+        assertThat(detail.statusReason()).isNull(); // the internal note may itself contain personal data
+        assertThat(detail.statusChangedBy()).isEqualTo(ADMIN);
+        InOrder order = inOrder(authorization, roleAssignments, refreshTokens, accountTokens);
+        order.verify(authorization).requireCanManage(ADMIN, target.getId());
+        order.verify(roleAssignments).requireCanLeave(target.getId());
+        order.verify(refreshTokens).deleteAllByUserId(target.getId());
+        order.verify(accountTokens).deleteAllByUserId(target.getId());
+        order.verify(roleAssignments).removeAllRoles(target.getId());
+        verify(events).publishEvent(new AccountErased("bob@example.com")); // the old address, for the confirmation
+    }
+
+    @Test
+    void anErasedAccountCannotBeErasedAgain() {
+        target.erase(ADMIN, NOW);
+
+        assertCode(() -> service.erase(ADMIN, target.getId()), ErrorCode.USER_INVALID_STATUS);
+        verifyNoInteractions(accountTokens, events);
+    }
+
+    @Test
+    void theLastAdminCannotBeErasedAndNothingChanges() {
+        doThrow(new BusinessException(ErrorCode.RBAC_LAST_ADMIN, "last")).when(roleAssignments).requireCanLeave(target.getId());
+
+        assertCode(() -> service.erase(ADMIN, target.getId()), ErrorCode.RBAC_LAST_ADMIN);
+        assertThat(target.getEmail()).isEqualTo("bob@example.com");
+        verify(refreshTokens, never()).deleteAllByUserId(any());
+        verify(roleAssignments, never()).removeAllRoles(any());
     }
 
     private static void assertCode(Runnable call, ErrorCode expected) {

@@ -45,7 +45,7 @@ users 1 ──────< refresh_tokens        (ON DELETE CASCADE)
 | id | UUID | no | PK, UUID v7 from the app |
 | email | VARCHAR(254) | no | Unique (index with `varchar_pattern_ops` since V4); CHECK trimmed and lower-case |
 | password_hash | VARCHAR(255) | no | `{argon2}...` |
-| status | VARCHAR(32) | no | PENDING_VERIFICATION, ACTIVE, DEACTIVATED, SUSPENDED (V4) |
+| status | VARCHAR(32) | no | PENDING_VERIFICATION, ACTIVE, DEACTIVATED, SUSPENDED (V4), ERASED (V5) |
 | email_verified_at | TIMESTAMPTZ | yes | Required when ACTIVE |
 | failed_login_count | INTEGER | no | Default 0, never negative |
 | locked_until | TIMESTAMPTZ | yes | Temporary lockout end |
@@ -144,6 +144,10 @@ V3 is the first migration that changes existing data: it backfills `CUSTOMER` fo
 
 Newest-first ordering uses `id`, not `created_at`: UUID v7 IDs are time-ordered, so the primary key already sorts by creation time.
 
+## Phase 3 changes (V5, erasure)
+
+An erased account keeps its row (later tables reference `users.id`) but no personal data. `ck_users_erased_is_anonymous` makes that a database guarantee: when `status = 'ERASED'`, the email must be `erased-<id>@erased.invalid`, the password hash `{erased}`, and `email_verified_at`, `last_login_at`, `locked_until`, `status_reason` null. Its refresh tokens (IP, user agent), account tokens and role assignments are deleted by the application in the same transaction. No new index: each delete uses an existing index whose leading column is `user_id`.
+
 ## Migration history
 
 | Version | Description |
@@ -152,3 +156,5 @@ Newest-first ordering uses `id`, not `created_at`: UUID v7 IDs are time-ordered,
 | V2 | users, refresh_tokens, account_tokens |
 | V3 | permissions, roles, role_permissions, user_roles; seed CUSTOMER and ADMIN; backfill CUSTOMER |
 | V4 | `user:read`, `user:manage` for ADMIN; SUSPENDED status with reason, time and actor; admin revoke reasons; list and search indexes |
+| V5 | `user:erase` for ADMIN; ERASED status; CHECK that an erased row is anonymous |
+| V6 | CHECK: the `@erased.invalid` domain only on erased rows (Phase 3 review) |

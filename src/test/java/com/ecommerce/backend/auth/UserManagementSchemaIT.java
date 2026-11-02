@@ -108,7 +108,7 @@ class UserManagementSchemaIT extends AbstractIntegrationTest {
                 SELECT rp.permission_code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id
                 WHERE r.code = 'ADMIN' AND rp.permission_code LIKE 'user:%' ORDER BY 1""", String.class);
 
-        assertThat(adminPermissions).containsExactly("user:manage", "user:read");
+        assertThat(adminPermissions).contains("user:manage", "user:read"); // later migrations add more (V5: user:erase)
     }
 
     @Test

@@ -98,14 +98,19 @@ public class RefreshTokenService {
     }
 
     private Rotation rotateInTransaction(String rawToken, ClientInfo client, Instant now) {
+        String hash = OpaqueTokens.hash(rawToken);
+        // Lock order: the account first, then the token (see lockOwnerStatusByTokenHash).
+        Optional<UserStatus> ownerStatus = tokens.lockOwnerStatusByTokenHash(hash).map(UserStatus::valueOf);
         // Row lock: a concurrent refresh with the same token waits here, then sees it rotated.
-        Optional<RefreshToken> found = tokens.findByTokenHashForUpdate(OpaqueTokens.hash(rawToken));
+        // Empty also if an erasure deleted the token while we waited for the account lock.
+        Optional<RefreshToken> found = ownerStatus.isPresent() ? tokens.findByTokenHashForUpdate(hash) : Optional.empty();
         if (found.isEmpty()) {
             log.info("Refresh rejected: reason=UNKNOWN_TOKEN");
             return null;
         }
         RefreshToken token = found.get();
         User user = token.getUser();
+        UserStatus status = ownerStatus.get(); // read under the lock; the entity may predate it
 
         if (token.isRevoked()) {
             handleRevokedTokenPresented(token, user, now);
@@ -115,9 +120,9 @@ public class RefreshTokenService {
             log.info("Refresh rejected: reason=EXPIRED, userId={}", user.getId());
             return null;
         }
-        if (!user.isActive()) {
+        if (status != UserStatus.ACTIVE) {
             // Normally already revoked by the status change; this covers tokens that slipped through.
-            token.revoke(user.getStatus() == UserStatus.SUSPENDED
+            token.revoke(status == UserStatus.SUSPENDED
                     ? RevokeReason.ACCOUNT_SUSPENDED : RevokeReason.ACCOUNT_DEACTIVATED, now);
             log.info("Refresh rejected: reason=ACCOUNT_NOT_ACTIVE, userId={}", user.getId());
             return null;

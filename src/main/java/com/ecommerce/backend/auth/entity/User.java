@@ -38,6 +38,12 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseEntity {
 
+    /**
+     * Stored instead of a hash when an account is erased. No encoder accepts it, and login never
+     * reaches the password check for an erased account anyway ({@code AuthenticationService}).
+     */
+    static final String ERASED_PASSWORD_HASH = "{erased}";
+
     @Column(name = "email", nullable = false, length = 254)
     private String email;
 
@@ -168,6 +174,50 @@ public class User extends BaseEntity {
     public void reactivate(UUID by, Instant now) {
         requireStatus(UserStatus.SUSPENDED, UserStatus.DEACTIVATED);
         changeStatus(UserStatus.ACTIVE, null, Objects.requireNonNull(by, "by"), now);
+    }
+
+    /**
+     * Anonymises the account: the row stays (other tables will reference it), the personal data
+     * goes. Allowed from every status except ERASED, and irreversible. Sessions, email links and
+     * roles live in other tables; {@code AccountEraser} deletes them in the same transaction.
+     *
+     * @param by the owner's own ID, or the administrator who handled the request
+     */
+    public void erase(UUID by, Instant now) {
+        if (status == UserStatus.ERASED) {
+            throw new IllegalStateException("Account is already erased");
+        }
+        this.email = erasedEmail(getId());
+        this.passwordHash = ERASED_PASSWORD_HASH;
+        this.emailVerifiedAt = null;
+        this.lastLoginAt = null;
+        this.failedLoginCount = 0;
+        this.lockedUntil = null;
+        changeStatus(UserStatus.ERASED, null, Objects.requireNonNull(by, "by"), now);
+    }
+
+    public boolean isErased() {
+        return status == UserStatus.ERASED;
+    }
+
+    /**
+     * Unique (contains the ID) and undeliverable (RFC 2606 reserves {@code .invalid}), so the original
+     * address is free to register again. Must match {@code ck_users_erased_is_anonymous} (V5).
+     */
+    static String erasedEmail(UUID id) {
+        return "erased-" + id + "@erased.invalid";
+    }
+
+    /**
+     * Addresses under the {@code .invalid} top-level domain can never receive mail (RFC 2606), so no
+     * real person registers one. Refusing them also keeps erasure placeholders unclaimable: someone
+     * who registered {@code erased-<your id>@erased.invalid} would make your erasure fail on the
+     * unique email index. V6 enforces the narrower rule in the database as well.
+     *
+     * @param normalizedEmail output of {@link #normalizeEmail}
+     */
+    public static boolean isReservedEmail(String normalizedEmail) {
+        return normalizedEmail.endsWith(".invalid");
     }
 
     private void requireStatus(UserStatus... allowed) {

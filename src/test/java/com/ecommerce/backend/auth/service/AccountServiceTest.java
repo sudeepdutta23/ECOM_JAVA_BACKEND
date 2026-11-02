@@ -13,6 +13,9 @@ import com.ecommerce.backend.auth.entity.RevokeReason;
 import com.ecommerce.backend.auth.entity.User;
 import com.ecommerce.backend.auth.entity.UserStatus;
 import com.ecommerce.backend.auth.event.AccountDeactivated;
+import com.ecommerce.backend.auth.event.AccountErased;
+import com.ecommerce.backend.auth.repository.AccountTokenRepository;
+import com.ecommerce.backend.auth.repository.RefreshTokenRepository;
 import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.auth.repository.UserSummary;
 import com.ecommerce.backend.common.exception.BusinessException;
@@ -40,6 +43,8 @@ class AccountServiceTest {
     private final RefreshTokenService refreshTokens = mock(RefreshTokenService.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final RoleAssignmentService roleAssignments = mock(RoleAssignmentService.class);
+    private final RefreshTokenRepository refreshTokenRows = mock(RefreshTokenRepository.class);
+    private final AccountTokenRepository accountTokens = mock(AccountTokenRepository.class);
     private AccountService service;
     private User user;
 
@@ -48,7 +53,9 @@ class AccountServiceTest {
         TransactionOperations noTx = TransactionOperations.withoutTransaction();
         CurrentPasswordCheck check = new CurrentPasswordCheck(encoder,
                 new FailedLoginRecorder(users, events, noTx, TestAuthProperties.defaults()));
-        service = new AccountService(users, check, refreshTokens, events, roleAssignments, noTx, Clock.fixed(NOW, ZoneOffset.UTC));
+        AccountEraser eraser = new AccountEraser(refreshTokenRows, accountTokens, roleAssignments, events);
+        service = new AccountService(users, check, refreshTokens, events, roleAssignments, eraser, noTx,
+                Clock.fixed(NOW, ZoneOffset.UTC));
 
         user = User.register("alice@example.com", "{argon2}h", NOW);
         ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
@@ -104,5 +111,51 @@ class AccountServiceTest {
 
         assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
         verify(refreshTokens, never()).revokeAll(any(), any());
+    }
+
+    @Test
+    void currentUserOfAnErasedAccountIsUnauthorized() {
+        when(users.findSummaryById(user.getId())).thenReturn(Optional.of(
+                new UserSummary(user.getId(), "erased-x@erased.invalid", UserStatus.ERASED, null, null, NOW)));
+
+        assertThatThrownBy(() -> service.currentUser(user.getId())).isInstanceOfSatisfying(BusinessException.class,
+                e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.UNAUTHORIZED));
+    }
+
+    @Test
+    void eraseAnonymisesDeletesEverythingAndConfirmsToTheOldAddress() {
+        service.erase(user.getId(), PASSWORD);
+
+        assertThat(user.isErased()).isTrue();
+        assertThat(user.getEmail()).isEqualTo("erased-" + user.getId() + "@erased.invalid");
+        assertThat(user.getStatusChangedBy()).isEqualTo(user.getId());
+        verify(roleAssignments).requireCanLeave(user.getId());
+        verify(refreshTokenRows).deleteAllByUserId(user.getId());
+        verify(accountTokens).deleteAllByUserId(user.getId());
+        verify(roleAssignments).removeAllRoles(user.getId());
+        verify(events).publishEvent(new AccountErased("alice@example.com"));
+    }
+
+    @Test
+    void eraseRequiresTheCorrectPassword() {
+        when(encoder.matches("wrong", "{argon2}h")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.erase(user.getId(), "wrong")).isInstanceOfSatisfying(BusinessException.class,
+                e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AUTH_INVALID_CURRENT_PASSWORD));
+
+        assertThat(user.isErased()).isFalse();
+        verify(refreshTokenRows, never()).deleteAllByUserId(any());
+    }
+
+    @Test
+    void theLastActiveAdministratorCannotEraseThemselves() {
+        doThrow(new BusinessException(ErrorCode.RBAC_LAST_ADMIN, "last"))
+                .when(roleAssignments).requireCanLeave(user.getId());
+
+        assertThatThrownBy(() -> service.erase(user.getId(), PASSWORD)).isInstanceOfSatisfying(BusinessException.class,
+                e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RBAC_LAST_ADMIN));
+
+        assertThat(user.getEmail()).isEqualTo("alice@example.com");
+        verify(roleAssignments, never()).removeAllRoles(any());
     }
 }

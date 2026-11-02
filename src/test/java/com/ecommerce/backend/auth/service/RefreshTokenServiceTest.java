@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -28,6 +29,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionOperations;
@@ -66,6 +68,9 @@ class RefreshTokenServiceTest {
         ReflectionTestUtils.setField(token, "id", UUID.randomUUID());
         when(repository.findByTokenHashForUpdate(OpaqueTokens.hash(RAW))).thenReturn(Optional.of(token));
         when(repository.findByTokenHash(OpaqueTokens.hash(RAW))).thenReturn(Optional.of(token));
+        // The status as the database reports it under the account lock; follows the entity unless a test overrides it.
+        when(repository.lockOwnerStatusByTokenHash(OpaqueTokens.hash(RAW)))
+                .thenAnswer(i -> Optional.of(user.getStatus().name()));
         return token;
     }
 
@@ -179,6 +184,48 @@ class RefreshTokenServiceTest {
 
         assertThat(token.getRevokeReason()).isEqualTo(RevokeReason.ACCOUNT_DEACTIVATED);
         verify(repository, never()).save(any());
+    }
+
+    @Test
+    void theAccountIsLockedBeforeTheToken() {
+        stored(NOW.minus(Duration.ofDays(1)));
+
+        service.rotate(RAW, CLIENT);
+
+        InOrder order = inOrder(repository);
+        order.verify(repository).lockOwnerStatusByTokenHash(OpaqueTokens.hash(RAW));
+        order.verify(repository).findByTokenHashForUpdate(OpaqueTokens.hash(RAW));
+    }
+
+    @Test
+    void theStatusReadUnderTheLockWinsOverAStaleEntity() {
+        RefreshToken token = stored(NOW.minus(Duration.ofDays(1)));
+        // Suspended by an admin while this refresh waited for the lock; the loaded entity still says ACTIVE.
+        when(repository.lockOwnerStatusByTokenHash(OpaqueTokens.hash(RAW))).thenReturn(Optional.of("SUSPENDED"));
+
+        assertInvalid(() -> service.rotate(RAW, CLIENT));
+
+        assertThat(token.getRevokeReason()).isEqualTo(RevokeReason.ACCOUNT_SUSPENDED);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void aTokenDeletedWhileWaitingForTheLockIsUnknown() {
+        stored(NOW.minus(Duration.ofDays(1)));
+        when(repository.findByTokenHashForUpdate(OpaqueTokens.hash(RAW))).thenReturn(Optional.empty()); // erased meanwhile
+
+        assertInvalid(() -> service.rotate(RAW, CLIENT));
+
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void anUnknownTokenTakesNoTokenLock() {
+        when(repository.lockOwnerStatusByTokenHash(OpaqueTokens.hash(RAW))).thenReturn(Optional.empty());
+
+        assertInvalid(() -> service.rotate(RAW, CLIENT));
+
+        verify(repository, never()).findByTokenHashForUpdate(any());
     }
 
     // ------------------------------------------------------------------ revoke

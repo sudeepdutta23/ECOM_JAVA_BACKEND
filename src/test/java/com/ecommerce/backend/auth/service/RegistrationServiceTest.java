@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -109,6 +110,18 @@ class RegistrationServiceTest {
         service.register("alice@example.com", PASSWORD);
 
         verify(encoder).encode(PASSWORD);
+    }
+
+    @Test
+    void reservedInvalidDomainsAreRejectedBeforeAnyWork() {
+        // Claiming someone's erasure placeholder would make their erasure fail on the unique index.
+        for (String email : new String[] {"erased-" + UUID.randomUUID() + "@erased.invalid", " Bob@Example.INVALID "}) {
+            assertThatThrownBy(() -> service.register(email, PASSWORD))
+                    .isInstanceOfSatisfying(RequestValidationException.class,
+                            e -> assertThat(e.getErrors().get(0).field()).isEqualTo("email"));
+        }
+
+        verifyNoInteractions(users, encoder, events);
     }
 
     @Test

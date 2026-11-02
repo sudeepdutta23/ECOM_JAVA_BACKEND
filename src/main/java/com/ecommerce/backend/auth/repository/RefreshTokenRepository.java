@@ -30,6 +30,28 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Query("select t from RefreshToken t where t.tokenHash = :tokenHash")
     Optional<RefreshToken> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
 
+    /**
+     * The current status of the token's owner, with a share lock on the owner's {@code users} row
+     * until the transaction ends. Empty if no token has this hash.
+     *
+     * <p>Refresh takes this lock BEFORE {@link #findByTokenHashForUpdate}. Account-wide changes
+     * (suspend, erase, password change) update the user row first and touch the tokens second, so
+     * both sides lock in the same order and cannot deadlock. With the lock:
+     * <ul>
+     *   <li>a change that committed first is seen here (READ COMMITTED reads after the lock);</li>
+     *   <li>a change that starts later waits until this refresh commits, and then its token
+     *       statement sees the successor token. Erasure cannot miss a token, and with it an IP
+     *       address and user agent.</li>
+     * </ul>
+     * A scalar query, so no entity enters the persistence context with possibly stale state.
+     */
+    @Query(value = """
+            SELECT u.status FROM users u
+            WHERE u.id = (SELECT t.user_id FROM refresh_tokens t WHERE t.token_hash = :tokenHash)
+            FOR SHARE OF u
+            """, nativeQuery = true)
+    Optional<String> lockOwnerStatusByTokenHash(@Param("tokenHash") String tokenHash);
+
     /** Logout-all, password change and deactivation: revoke every live token of a user. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
@@ -90,4 +112,12 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     /** Ownership check before ending a session: a family ID alone proves nothing. */
     boolean existsByFamilyIdAndUser_Id(UUID familyId, UUID userId);
+
+    /**
+     * Erasure: deletes rather than revokes, because every row holds an IP address and a user agent,
+     * which are personal data. Served by {@code idx_refresh_tokens_user_id}.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from RefreshToken t where t.user.id = :userId")
+    int deleteAllByUserId(@Param("userId") UUID userId);
 }

@@ -74,7 +74,7 @@ attacker replays R1 ───> R1 is already revoked
                        => 401; real user must log in again
 ```
 
-Concurrency: the token row is locked with `SELECT ... FOR UPDATE` during rotation, so two simultaneous refreshes with the same token cannot both succeed.
+Concurrency: the token row is locked with `SELECT ... FOR UPDATE` during rotation, so two simultaneous refreshes with the same token cannot both succeed. Before that, rotation takes a share lock on the owner's `users` row and reads the status under it (Phase 3 review). Every account-wide change (suspension, erasure, password change) updates the `users` row before touching tokens, so it waits for a refresh in progress and then sees its successor token; both sides lock account-then-token, so they cannot deadlock.
 
 ## 4. Account lifecycle
 
@@ -82,6 +82,7 @@ Concurrency: the token row is locked with `SELECT ... FOR UPDATE` during rotatio
 register ──> PENDING_VERIFICATION ──verify email──> ACTIVE ──deactivate──> DEACTIVATED
                                                       └──suspend (admin, Phase 3)──> SUSPENDED
 (admin reactivation of DEACTIVATED and SUSPENDED: see docs/modules/USERS.md)
+(erasure, by the owner or an admin, from any status ──> ERASED, terminal: see USERS.md section 9)
                                                      │  ▲
                               5 failed logins ───────┘  └── locked_until passes (15 min)
                               (locked_until set; status unchanged)
@@ -108,6 +109,7 @@ All paths are under `/api/v1/auth`. All bodies are JSON. Errors use Problem Deta
 | 10 | POST | `/password/reset` | Public | 204 | Set new password with reset token |
 | 11 | GET | `/me` | Bearer | 200 | Current account summary |
 | 12 | POST | `/me/deactivate` | Bearer | 204 | Deactivate own account (needs password) |
+| 13 | POST | `/me/erase` | Bearer | 204 | Erase own account, irreversibly (needs password; Phase 3) |
 
 **Why verbs in URLs?** Authentication operations are commands, not resources. Modelling them as `POST /sessions` and `DELETE /sessions/{id}` is possible, but every major identity provider uses action endpoints, and they are clearer for clients. Resource style is used where the thing is a resource: `GET /me/sessions` and `DELETE /me/sessions/{id}` (Phase 3).
 

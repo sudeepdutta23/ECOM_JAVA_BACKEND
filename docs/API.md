@@ -104,6 +104,7 @@ Send `X-Request-Id` (8 to 64 characters, letters, digits, `.`, `_`, `-`) to corr
 | GET | `/api/v1/auth/me/sessions` | Bearer | My signed-in devices; `current` marks this one |
 | DELETE | `/api/v1/auth/me/sessions/{sessionId}` | Bearer | Sign out one device; 204; 404 if not mine |
 | POST | `/api/v1/auth/me/deactivate` | Bearer | Needs current password; ends all sessions; 204; 409 `RBAC_LAST_ADMIN` for the last active admin |
+| POST | `/api/v1/auth/me/erase` | Bearer | Irreversible. Needs current password; anonymises the account, deletes sessions, links and roles; 204; 409 `RBAC_LAST_ADMIN` |
 | GET | `/api/v1/admin/permissions` | Bearer + `role:read` | Permission catalogue |
 | GET | `/api/v1/admin/roles` | Bearer + `role:read` | Roles with permissions |
 | GET | `/api/v1/admin/roles/{roleId}` | Bearer + `role:read` | One role |
@@ -119,6 +120,7 @@ Send `X-Request-Id` (8 to 64 characters, letters, digits, `.`, `_`, `-`) to corr
 | POST | `/api/v1/admin/users/{userId}/reactivate` | Bearer + `user:manage` | SUSPENDED or DEACTIVATED only; returns the account |
 | POST | `/api/v1/admin/users/{userId}/unlock` | Bearer + `user:manage` | Ends a failed-login lockout; idempotent |
 | POST | `/api/v1/admin/users/{userId}/sign-out` | Bearer + `user:manage` | Ends every session; idempotent |
+| POST | `/api/v1/admin/users/{userId}/erase` | Bearer + `user:erase` | Irreversible anonymisation in any status; 409 `USER_INVALID_STATUS` if already erased, `RBAC_LAST_ADMIN` |
 
 `GET /api/v1/auth/me` also returns `roles` and `permissions` (read from the database, so current even before a token refresh).
 | GET | `/actuator/health` | Public | Health, including database |

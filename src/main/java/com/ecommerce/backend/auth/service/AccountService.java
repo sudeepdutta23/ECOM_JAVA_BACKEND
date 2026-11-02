@@ -2,6 +2,7 @@ package com.ecommerce.backend.auth.service;
 
 import com.ecommerce.backend.auth.entity.RevokeReason;
 import com.ecommerce.backend.auth.entity.User;
+import com.ecommerce.backend.auth.entity.UserStatus;
 import com.ecommerce.backend.auth.event.AccountDeactivated;
 import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.auth.repository.UserSummary;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionOperations;
 
-/** The signed-in user's own account: view it, deactivate it. */
+/** The signed-in user's own account: view it, deactivate it, erase it. */
 @Service
 public class AccountService {
 
@@ -29,17 +30,20 @@ public class AccountService {
     private final RefreshTokenService refreshTokens;
     private final ApplicationEventPublisher events;
     private final RoleAssignmentService roleAssignments;
+    private final AccountEraser eraser;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public AccountService(UserRepository users, CurrentPasswordCheck currentPassword,
                           RefreshTokenService refreshTokens, ApplicationEventPublisher events,
-                          RoleAssignmentService roleAssignments, TransactionOperations transactions, Clock clock) {
+                          RoleAssignmentService roleAssignments, AccountEraser eraser,
+                          TransactionOperations transactions, Clock clock) {
         this.users = users;
         this.currentPassword = currentPassword;
         this.refreshTokens = refreshTokens;
         this.events = events;
         this.roleAssignments = roleAssignments;
+        this.eraser = eraser;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -50,7 +54,10 @@ public class AccountService {
      */
     @Transactional(readOnly = true)
     public UserSummary currentUser(UUID userId) {
-        return users.findSummaryById(userId).orElseThrow(AccountService::accountUnavailable);
+        // An access token issued before erasure lives up to 15 minutes; it must not show the placeholder.
+        return users.findSummaryById(userId)
+                .filter(summary -> summary.status() != UserStatus.ERASED)
+                .orElseThrow(AccountService::accountUnavailable);
     }
 
     /**
@@ -72,6 +79,24 @@ public class AccountService {
             events.publishEvent(new AccountDeactivated(email));
         });
         log.info("Account deactivated by owner: userId={}", userId);
+    }
+
+    /**
+     * Erases the account on the owner's request after re-confirming the password: the email and
+     * password are replaced, every session, email link and role is deleted. Irreversible; the
+     * email address can be registered again afterwards. The last active administrator is refused
+     * (409 {@code RBAC_LAST_ADMIN}).
+     */
+    public void erase(UUID userId, String password) {
+        Instant now = Instant.now(clock);
+        User user = users.findById(userId).filter(User::isActive).orElseThrow(AccountService::accountUnavailable);
+        currentPassword.verify(user, password, now); // hashing stays outside the transaction
+
+        AccountEraser.Erasure erasure = transactions.execute(status -> {
+            User managed = users.findById(userId).filter(User::isActive).orElseThrow(AccountService::accountUnavailable);
+            return eraser.erase(managed, userId, now);
+        });
+        log.info("Account erased by owner: userId={}, {}", userId, erasure);
     }
 
     /** A valid token whose account was deleted or switched off meanwhile. */

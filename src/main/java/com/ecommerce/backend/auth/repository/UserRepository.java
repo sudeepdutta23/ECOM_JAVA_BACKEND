@@ -25,6 +25,8 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
 
     long countByIdInAndStatus(Collection<UUID> ids, UserStatus status);
 
+    boolean existsByIdAndStatusNot(UUID id, UserStatus status);
+
     /** DTO projection: a constructor expression selects only the listed columns. */
     @Query("""
             select new com.ecommerce.backend.auth.repository.UserSummary(
