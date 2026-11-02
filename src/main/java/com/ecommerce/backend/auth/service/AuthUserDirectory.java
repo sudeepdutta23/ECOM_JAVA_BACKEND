@@ -5,8 +5,11 @@ import com.ecommerce.backend.auth.entity.UserStatus;
 import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.rbac.service.UserDirectory;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +31,21 @@ class AuthUserDirectory implements UserDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean isActive(UUID userId) {
+        return users.countByIdInAndStatus(List.of(userId), UserStatus.ACTIVE) == 1;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public long countActive(Collection<UUID> userIds) {
         return userIds.isEmpty() ? 0 : users.countByIdInAndStatus(userIds, UserStatus.ACTIVE);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, String> emailsOf(Collection<UUID> userIds) {
+        return userIds.isEmpty() ? Map.of()
+                : users.findAllById(userIds).stream().collect(Collectors.toMap(User::getId, User::getEmail));
     }
 
     @Override

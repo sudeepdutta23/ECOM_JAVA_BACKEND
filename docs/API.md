@@ -63,6 +63,16 @@ Clients branch on `code`, never on `detail` or `title`.
 | 409 | `RBAC_LAST_ADMIN` | Revoking, deactivating or suspending would leave no active administrator |
 | 403 | `USER_SELF_ACTION_DENIED` | Admin account actions on your own account; use your own account endpoints |
 | 409 | `USER_INVALID_STATUS` | The action does not fit the account's status (for example suspending a suspended account) |
+| 409 | `ORG_SLUG_TAKEN` | Another organisation, open or closed, already has this slug |
+| 409 | `ORG_LIMIT_REACHED` | You already own the maximum number of organisations that are not closed (default 3) |
+| 409 | `ORG_INVALID_STATUS` | The organisation's status does not allow the change (suspended or closed organisations are read-only) |
+| 403 | `ORG_RANK_DENIED` | The member or role is at or above your own (only owners manage owners) |
+| 403 | `ORG_SELF_ACTION_DENIED` | Changing or removing your own membership; leave instead |
+| 409 | `ORG_LAST_OWNER` | The change would leave an open organisation without an owner, including deactivating or erasing the account of its only owner |
+| 409 | `ORG_ALREADY_MEMBER` | The invited or accepting account is already a member |
+| 409 | `ORG_INVITATION_LIMIT` | The organisation has the maximum number of pending invitations (50) |
+| 400 | `ORG_INVALID_INVITATION` | Unknown, used, revoked or expired link, or one meant for another address |
+| 403 | `ORG_CONFLICT_OF_INTEREST` | Platform staff acting on an organisation they are a member of |
 
 ### Client guidance for refresh
 
@@ -121,6 +131,25 @@ Send `X-Request-Id` (8 to 64 characters, letters, digits, `.`, `_`, `-`) to corr
 | POST | `/api/v1/admin/users/{userId}/unlock` | Bearer + `user:manage` | Ends a failed-login lockout; idempotent |
 | POST | `/api/v1/admin/users/{userId}/sign-out` | Bearer + `user:manage` | Ends every session; idempotent |
 | POST | `/api/v1/admin/users/{userId}/erase` | Bearer + `user:erase` | Irreversible anonymisation in any status; 409 `USER_INVALID_STATUS` if already erased, `RBAC_LAST_ADMIN` |
+| POST | `/api/v1/organizations` | Bearer | Create a seller organisation `{slug, name}`; you become its owner; starts `PENDING_APPROVAL`; 201 + Location |
+| GET | `/api/v1/organizations?page=&size=` | Bearer | My organisations with my role, newest first |
+| GET | `/api/v1/organizations/{orgId}` | Bearer, member | Organisation with `myRole` and `myPermissions`; 404 for non-members |
+| PUT | `/api/v1/organizations/{orgId}` | Bearer, `ORGANIZATION_UPDATE` | Rename `{name, version}`; the slug is immutable |
+| GET | `/api/v1/organizations/{orgId}/members` | Bearer, member | Members with email and role |
+| PUT | `/api/v1/organizations/{orgId}/members/{userId}` | Bearer, `MEMBER_MANAGE` + rank | Change role `{role}` |
+| DELETE | `/api/v1/organizations/{orgId}/members/{userId}` | Bearer, `MEMBER_MANAGE` + rank | Remove; 204 |
+| POST | `/api/v1/organizations/{orgId}/leave` | Bearer, member | Leave; 204; 409 `ORG_LAST_OWNER` |
+| POST | `/api/v1/organizations/{orgId}/invitations` | Bearer, `MEMBER_MANAGE` + rank | Invite `{email, role}`; 201 |
+| GET | `/api/v1/organizations/{orgId}/invitations` | Bearer, `MEMBER_MANAGE` | Pending invitations |
+| DELETE | `/api/v1/organizations/{orgId}/invitations/{invitationId}` | Bearer, `MEMBER_MANAGE` + rank | Revoke; 204 |
+| POST | `/api/v1/organizations/invitations/accept` | Bearer, the invited address | Accept `{token}`; returns the organisation |
+| POST | `/api/v1/organizations/{orgId}/close` | Bearer, owner | Close for good; invitations revoked; not while suspended |
+| GET | `/api/v1/admin/organizations?status=&page=&size=` | Bearer + `org:read` | Platform list; `PENDING_APPROVAL` is the approval queue |
+| GET | `/api/v1/admin/organizations/{organizationId}` | Bearer + `org:read` | Detail with internal reason and member counts |
+| POST | `/api/v1/admin/organizations/{organizationId}/approve` | Bearer + `org:manage` | Pending only; 403 `ORG_CONFLICT_OF_INTEREST` for members |
+| POST | `/api/v1/admin/organizations/{organizationId}/suspend` | Bearer + `org:manage` | `{reason}`; active only |
+| POST | `/api/v1/admin/organizations/{organizationId}/reactivate` | Bearer + `org:manage` | Suspended only |
+| POST | `/api/v1/admin/organizations/{organizationId}/close` | Bearer + `org:manage` | Any status except closed |
 
 `GET /api/v1/auth/me` also returns `roles` and `permissions` (read from the database, so current even before a token refresh).
 | GET | `/actuator/health` | Public | Health, including database |

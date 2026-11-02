@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.ecommerce.backend.common.security.SecurityConfig;
 import com.ecommerce.backend.rbac.entity.PermissionDefinition;
-import com.ecommerce.backend.rbac.repository.PermissionDefinitionRepository;
+import com.ecommerce.backend.rbac.service.PermissionCatalogService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -30,7 +30,7 @@ class PermissionControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private PermissionDefinitionRepository permissions;
+    private PermissionCatalogService permissions;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
@@ -40,7 +40,7 @@ class PermissionControllerTest {
         PermissionDefinition read = Mockito.mock(PermissionDefinition.class);
         when(read.getCode()).thenReturn("role:read");
         when(read.getDescription()).thenReturn("View roles");
-        when(permissions.findAllByOrderByCodeAsc()).thenReturn(List.of(read));
+        when(permissions.list()).thenReturn(List.of(read));
 
         mockMvc.perform(get("/api/v1/admin/permissions")
                         .with(jwt().authorities(new SimpleGrantedAuthority("role:read"))))

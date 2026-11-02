@@ -123,7 +123,7 @@ app:
         method: POST
         paths: [/api/v1/auth/refresh, /api/v1/auth/email/verify, /api/v1/auth/password/reset,
                 /api/v1/auth/password/change, /api/v1/auth/me/deactivate,
-                /api/v1/auth/me/erase]
+                /api/v1/auth/me/erase, /api/v1/organizations/invitations/accept]
         capacity: 30
         period: 1m
 
@@ -138,6 +138,13 @@ app:
     failed-login-min-duration: 400ms
     # Secure cookies are only sent over HTTPS. Dev overrides this so curl works over plain HTTP.
     refresh-cookie-secure: true
+  org:
+    # Organisations one account may own that are not closed: limits spam sellers. Pending ones count.
+    max-owned-organizations: 3
+    max-pending-invitations: 50
+    invitation-ttl: 7d
+    frontend-base-url: ${app.auth.frontend-base-url}
+
   rbac:
     # First administrator: this account gets ADMIN at startup while no active admin exists.
     # Register and verify it first, then restart. Does nothing once an admin exists.

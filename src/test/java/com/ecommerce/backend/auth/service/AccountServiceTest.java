@@ -20,6 +20,7 @@ import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.auth.repository.UserSummary;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
+import com.ecommerce.backend.org.service.MemberDeparture;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -45,6 +46,7 @@ class AccountServiceTest {
     private final RoleAssignmentService roleAssignments = mock(RoleAssignmentService.class);
     private final RefreshTokenRepository refreshTokenRows = mock(RefreshTokenRepository.class);
     private final AccountTokenRepository accountTokens = mock(AccountTokenRepository.class);
+    private final MemberDeparture departure = mock(MemberDeparture.class);
     private AccountService service;
     private User user;
 
@@ -53,8 +55,8 @@ class AccountServiceTest {
         TransactionOperations noTx = TransactionOperations.withoutTransaction();
         CurrentPasswordCheck check = new CurrentPasswordCheck(encoder,
                 new FailedLoginRecorder(users, events, noTx, TestAuthProperties.defaults()));
-        AccountEraser eraser = new AccountEraser(refreshTokenRows, accountTokens, roleAssignments, events);
-        service = new AccountService(users, check, refreshTokens, events, roleAssignments, eraser, noTx,
+        AccountEraser eraser = new AccountEraser(refreshTokenRows, accountTokens, roleAssignments, departure, events);
+        service = new AccountService(users, check, refreshTokens, events, roleAssignments, eraser, departure, noTx,
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         user = User.register("alice@example.com", "{argon2}h", NOW);
@@ -111,6 +113,28 @@ class AccountServiceTest {
 
         assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
         verify(refreshTokens, never()).revokeAll(any(), any());
+    }
+
+    @Test
+    void theOnlyOwnerOfAnOpenOrganizationCannotDeactivateOrErase() {
+        doThrow(new BusinessException(ErrorCode.ORG_LAST_OWNER, "only owner"))
+                .when(departure).requireNotSoleOwner(user.getId());
+
+        assertThatThrownBy(() -> service.deactivate(user.getId(), PASSWORD)).isInstanceOfSatisfying(BusinessException.class,
+                e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ORG_LAST_OWNER));
+        assertThatThrownBy(() -> service.erase(user.getId(), PASSWORD)).isInstanceOfSatisfying(BusinessException.class,
+                e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ORG_LAST_OWNER));
+
+        assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
+        verify(refreshTokens, never()).revokeAll(any(), any());
+        verify(departure, never()).forget(any(), any());
+    }
+
+    @Test
+    void erasureForgetsOrganizationDataUnderTheOldAddress() {
+        service.erase(user.getId(), PASSWORD);
+
+        verify(departure).forget(user.getId(), "alice@example.com");
     }
 
     @Test

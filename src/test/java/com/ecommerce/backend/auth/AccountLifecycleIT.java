@@ -159,7 +159,7 @@ class AccountLifecycleIT extends AbstractIntegrationTest {
         String token = RecordingEmailSender.tokenFrom(awaitEmail("Reset your password"));
         jdbc.update("""
                 UPDATE account_tokens SET created_at = now() - interval '2 hours', expires_at = now() - interval '1 hour'
-                WHERE token_hash = ?""", com.ecommerce.backend.auth.security.OpaqueTokens.hash(token));
+                WHERE token_hash = ?""", com.ecommerce.backend.common.security.OpaqueTokens.hash(token));
 
         ResponseEntity<String> response = client.postJson("/api/v1/auth/password/reset",
                 Map.of("token", token, "newPassword", NEW_PASSWORD));

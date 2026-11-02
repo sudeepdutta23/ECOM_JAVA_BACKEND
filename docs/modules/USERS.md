@@ -164,6 +164,8 @@ Privacy law (GDPR Art. 17 and similar) gives people the right to have their pers
 
 **Confirmation email.** The old address travels only in the `AccountErased` event, so that one confirmation can be sent after commit. After that the address exists nowhere in the system. Logs carry only the user ID.
 
+**Organisations (Phase 4).** The only owner of an open organisation cannot be erased or deactivated (409 `ORG_LAST_OWNER`): hand over or close first. Erasure deletes every membership and every invitation sent to the address (`org.service.MemberDeparture`, same transaction).
+
 **Not covered yet.** Profile data (Phase 5), files (Phase 8) and audit entries (Phase 9) belong to their modules; each will react to `AccountErased` (Phase 13 events). Database backups still hold the old data until they expire; the retention period of backups is part of the privacy policy, not of this code.
 
 ## 10. Plan

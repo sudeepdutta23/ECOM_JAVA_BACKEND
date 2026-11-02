@@ -1,6 +1,6 @@
 package com.ecommerce.backend.auth.dto;
 
-import com.ecommerce.backend.auth.security.OpaqueTokens;
+import com.ecommerce.backend.common.security.OpaqueTokens;
 import com.ecommerce.backend.auth.service.PasswordPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;

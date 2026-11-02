@@ -8,6 +8,7 @@ import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.auth.repository.UserSummary;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
+import com.ecommerce.backend.org.service.MemberDeparture;
 import com.ecommerce.backend.rbac.service.RoleAssignmentService;
 import java.time.Clock;
 import java.time.Instant;
@@ -31,19 +32,21 @@ public class AccountService {
     private final ApplicationEventPublisher events;
     private final RoleAssignmentService roleAssignments;
     private final AccountEraser eraser;
+    private final MemberDeparture organizations;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public AccountService(UserRepository users, CurrentPasswordCheck currentPassword,
                           RefreshTokenService refreshTokens, ApplicationEventPublisher events,
                           RoleAssignmentService roleAssignments, AccountEraser eraser,
-                          TransactionOperations transactions, Clock clock) {
+                          MemberDeparture organizations, TransactionOperations transactions, Clock clock) {
         this.users = users;
         this.currentPassword = currentPassword;
         this.refreshTokens = refreshTokens;
         this.events = events;
         this.roleAssignments = roleAssignments;
         this.eraser = eraser;
+        this.organizations = organizations;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -63,7 +66,8 @@ public class AccountService {
     /**
      * Deactivates the account after re-confirming the password, and ends every session.
      * Reactivation is an administrator action (Phase 3). The last active administrator is refused
-     * (409 {@code RBAC_LAST_ADMIN}), or nobody could administer the system afterwards.
+     * (409 {@code RBAC_LAST_ADMIN}), or nobody could administer the system afterwards; so is the only
+     * owner of an open organisation (409 {@code ORG_LAST_OWNER}), or nobody could manage that seller.
      */
     public void deactivate(UUID userId, String password) {
         Instant now = Instant.now(clock);
@@ -72,6 +76,7 @@ public class AccountService {
 
         transactions.executeWithoutResult(status -> {
             roleAssignments.requireCanLeave(userId); // locks the ADMIN row until commit
+            organizations.requireNotSoleOwner(userId); // memberships stay: deactivation is reversible
             User managed = users.findById(userId).orElseThrow(AccountService::accountUnavailable);
             managed.deactivate(now);
             String email = managed.getEmail();
@@ -84,8 +89,9 @@ public class AccountService {
     /**
      * Erases the account on the owner's request after re-confirming the password: the email and
      * password are replaced, every session, email link and role is deleted. Irreversible; the
-     * email address can be registered again afterwards. The last active administrator is refused
-     * (409 {@code RBAC_LAST_ADMIN}).
+     * email address can be registered again afterwards. The last active administrator (409
+     * {@code RBAC_LAST_ADMIN}) and the only owner of an open organisation (409 {@code ORG_LAST_OWNER})
+     * are refused.
      */
     public void erase(UUID userId, String password) {
         Instant now = Instant.now(clock);

@@ -145,6 +145,7 @@ docs/                     architecture, security, database, ADRs
 - [Security](docs/SECURITY.md)
 - [Testing](docs/TESTING.md)
 - [Decisions (ADRs)](docs/DECISIONS.md)
+- [Interview questions](docs/INTERVIEW-QUESTIONS.md): every step's questions in one place
 
 ## Git workflow
 

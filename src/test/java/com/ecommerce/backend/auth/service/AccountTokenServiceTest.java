@@ -11,7 +11,7 @@ import com.ecommerce.backend.auth.entity.AccountToken;
 import com.ecommerce.backend.auth.entity.TokenPurpose;
 import com.ecommerce.backend.auth.entity.User;
 import com.ecommerce.backend.auth.repository.AccountTokenRepository;
-import com.ecommerce.backend.auth.security.OpaqueTokens;
+import com.ecommerce.backend.common.security.OpaqueTokens;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import java.time.Clock;

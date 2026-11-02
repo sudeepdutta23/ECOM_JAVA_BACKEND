@@ -20,7 +20,9 @@ public enum Permission {
     ROLE_ASSIGN(Permissions.ROLE_ASSIGN),
     USER_READ(Permissions.USER_READ),
     USER_MANAGE(Permissions.USER_MANAGE),
-    USER_ERASE(Permissions.USER_ERASE);
+    USER_ERASE(Permissions.USER_ERASE),
+    ORG_READ(Permissions.ORG_READ),
+    ORG_MANAGE(Permissions.ORG_MANAGE);
 
     private static final Map<String, Permission> BY_CODE = Arrays.stream(values())
             .collect(Collectors.toUnmodifiableMap(Permission::code, Function.identity()));

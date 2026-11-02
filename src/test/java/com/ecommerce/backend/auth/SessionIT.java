@@ -63,7 +63,7 @@ class SessionIT extends AbstractIntegrationTest {
 
     private String revokeReason(String rawToken) {
         return jdbc.queryForObject("SELECT revoke_reason FROM refresh_tokens WHERE token_hash = ?", String.class,
-                com.ecommerce.backend.auth.security.OpaqueTokens.hash(rawToken));
+                com.ecommerce.backend.common.security.OpaqueTokens.hash(rawToken));
     }
 
     // ------------------------------------------------------------------ rotation
@@ -169,7 +169,7 @@ class SessionIT extends AbstractIntegrationTest {
         String cookie = loginCookie();
         jdbc.update("""
                 UPDATE refresh_tokens SET issued_at = now() - interval '8 days', expires_at = now() - interval '1 day'
-                WHERE token_hash = ?""", com.ecommerce.backend.auth.security.OpaqueTokens.hash(cookie));
+                WHERE token_hash = ?""", com.ecommerce.backend.common.security.OpaqueTokens.hash(cookie));
 
         assertThat(client.refresh(cookie).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }

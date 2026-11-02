@@ -44,9 +44,6 @@ import org.springframework.web.bind.annotation.RestController;
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 public class UserAdminController {
 
-    static final int MAX_PAGE = 10_000;
-    static final int MAX_SIZE = 100;
-
     private final UserAdminService users;
 
     public UserAdminController(UserAdminService users) {
@@ -62,8 +59,8 @@ public class UserAdminController {
             @Parameter(description = "Exact status") @RequestParam(required = false) UserStatus status,
             @Parameter(description = "Case-insensitive email prefix, e.g. 'ali' finds alice@example.com")
             @RequestParam(required = false) @Size(max = 254) String email,
-            @Parameter(description = "Zero-based page index") @RequestParam(defaultValue = "0") @Min(0) @Max(MAX_PAGE) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(MAX_SIZE) int size) {
+            @Parameter(description = "Zero-based page index") @RequestParam(defaultValue = "0") @Min(0) @Max(PageResponse.MAX_PAGE) int page,
+            @RequestParam(defaultValue = PageResponse.DEFAULT_SIZE) @Min(1) @Max(PageResponse.MAX_SIZE) int size) {
         return ApiResponse.success("Users", users.search(status, email, page, size));
     }
 

@@ -46,7 +46,19 @@ public enum ErrorCode {
 
     // ----- User management (Phase 3) -----
     USER_SELF_ACTION_DENIED(HttpStatus.FORBIDDEN, "Not allowed on your own account"),
-    USER_INVALID_STATUS(HttpStatus.CONFLICT, "Not allowed in the account's current status");
+    USER_INVALID_STATUS(HttpStatus.CONFLICT, "Not allowed in the account's current status"),
+
+    // ----- Organisations (Phase 4) -----
+    ORG_SLUG_TAKEN(HttpStatus.CONFLICT, "Slug already taken"),
+    ORG_LIMIT_REACHED(HttpStatus.CONFLICT, "Organisation limit reached"),
+    ORG_INVALID_STATUS(HttpStatus.CONFLICT, "Not allowed in the organisation's current status"),
+    ORG_RANK_DENIED(HttpStatus.FORBIDDEN, "Not allowed for a role at or above your own"),
+    ORG_SELF_ACTION_DENIED(HttpStatus.FORBIDDEN, "Not allowed on your own membership"),
+    ORG_LAST_OWNER(HttpStatus.CONFLICT, "Last owner"),
+    ORG_ALREADY_MEMBER(HttpStatus.CONFLICT, "Already a member"),
+    ORG_INVITATION_LIMIT(HttpStatus.CONFLICT, "Too many pending invitations"),
+    ORG_INVALID_INVITATION(HttpStatus.BAD_REQUEST, "Invalid or expired invitation"),
+    ORG_CONFLICT_OF_INTEREST(HttpStatus.FORBIDDEN, "Not allowed on an organisation you belong to");
 
     private final HttpStatus status;
     private final String title;

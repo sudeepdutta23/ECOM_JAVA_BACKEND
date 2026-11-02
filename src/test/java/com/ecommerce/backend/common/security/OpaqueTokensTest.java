@@ -1,4 +1,4 @@
-package com.ecommerce.backend.auth.security;
+package com.ecommerce.backend.common.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -20,6 +20,11 @@ public record PageResponse<T>(
         @Schema(example = "137") long totalElements,
         @Schema(example = "7") int totalPages) {
 
+    /** ADR-011 limits, shared by every offset-paginated endpoint. */
+    public static final int MAX_SIZE = 100;
+    public static final int MAX_PAGE = 10_000;
+    public static final String DEFAULT_SIZE = "20";
+
     public static <E, T> PageResponse<T> from(Page<E> page, Function<E, T> mapper) {
         return new PageResponse<>(page.getContent().stream().map(mapper).toList(),
                 page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());

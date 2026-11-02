@@ -148,6 +148,18 @@ Newest-first ordering uses `id`, not `created_at`: UUID v7 IDs are time-ordered,
 
 An erased account keeps its row (later tables reference `users.id`) but no personal data. `ck_users_erased_is_anonymous` makes that a database guarantee: when `status = 'ERASED'`, the email must be `erased-<id>@erased.invalid`, the password hash `{erased}`, and `email_verified_at`, `last_login_at`, `locked_until`, `status_reason` null. Its refresh tokens (IP, user agent), account tokens and role assignments are deleted by the application in the same transaction. No new index: each delete uses an existing index whose leading column is `user_id`.
 
+## Phase 4 changes (V7, organisations)
+
+`organizations` (marketplace sellers) and `organization_members` (who works for which seller, one role each). Seller-owned tables of later phases carry `organization_id NOT NULL` (ADR-012). Full table and index list: [modules/ORGANIZATIONS.md](modules/ORGANIZATIONS.md#11-data-model-v7-v8-v9).
+
+| Index | Serves |
+|---|---|
+| `uk_organizations_slug` | Storefront lookup; uniqueness |
+| `idx_organizations_status_id (status, id)` | Approval queue, newest first |
+| `pk_organization_members (organization_id, user_id)` | Membership check per request, member list, owner count |
+| `idx_organization_members_user_id` | "My organisations" |
+| `idx_organizations_created_by`, `idx_organizations_status_changed_by`, `idx_organization_members_added_by` | `ON DELETE SET NULL` without full scans |
+
 ## Migration history
 
 | Version | Description |
@@ -158,3 +170,6 @@ An erased account keeps its row (later tables reference `users.id`) but no perso
 | V4 | `user:read`, `user:manage` for ADMIN; SUSPENDED status with reason, time and actor; admin revoke reasons; list and search indexes |
 | V5 | `user:erase` for ADMIN; ERASED status; CHECK that an erased row is anonymous |
 | V6 | CHECK: the `@erased.invalid` domain only on erased rows (Phase 3 review) |
+| V7 | organizations, organization_members; `org:read`, `org:manage` for ADMIN |
+| V8 | organization_invitations: hashed single-use links, one open invitation per address |
+| V9 | Index on invitation email, for erasure |

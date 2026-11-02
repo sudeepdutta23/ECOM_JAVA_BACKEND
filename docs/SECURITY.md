@@ -85,7 +85,7 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out keys/jwt-priva
 |---|---|---|
 | `login` | `/auth/login` | 10 per minute |
 | `email-sending` | `/auth/register`, `/auth/email/resend-verification`, `/auth/password/forgot` | 5 per 15 minutes, shared |
-| `credential-actions` | `/auth/refresh`, `/auth/email/verify`, `/auth/password/reset`, `/auth/password/change`, `/auth/me/deactivate`, `/auth/me/erase` | 30 per minute |
+| `credential-actions` | `/auth/refresh`, `/auth/email/verify`, `/auth/password/reset`, `/auth/password/change`, `/auth/me/deactivate`, `/auth/me/erase`, `/organizations/invitations/accept` | 30 per minute |
 
 - Rejections: `429 TOO_MANY_REQUESTS` with `Retry-After`; `X-RateLimit-Limit` and `X-RateLimit-Remaining` on every limited response.
 - The filter runs before Spring Security, so a rejected request costs no JWT parsing, database work or hashing.

@@ -6,7 +6,7 @@ import static com.ecommerce.backend.support.AuthTestClient.refreshCookieValue;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ecommerce.backend.AbstractIntegrationTest;
-import com.ecommerce.backend.auth.security.OpaqueTokens;
+import com.ecommerce.backend.common.security.OpaqueTokens;
 import com.ecommerce.backend.rbac.Permission;
 import com.ecommerce.backend.support.AuthTestClient;
 import com.ecommerce.backend.support.RecordingEmailSender;

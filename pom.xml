@@ -29,6 +29,7 @@
         <bucket4j.version>8.14.0</bucket4j.version>
         <!-- Overrides the Boot-managed 1.21.3, which cannot talk to Docker Engine 29+ (HTTP 400 on /info) -->
         <testcontainers.version>1.21.4</testcontainers.version>
+        <archunit.version>1.4.1</archunit.version>
     </properties>
 
     <dependencies>
@@ -153,6 +154,13 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Module boundaries as tests (ModuleBoundariesTest): the rules of ARCHITECTURE.md, enforced -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>${archunit.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

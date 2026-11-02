@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Proves that every hot auth and rbac query CAN use the index designed for it.
+ * Proves that every hot auth, rbac, user-admin and org query uses the index designed for it.
  *
  * <p>Test tables hold only a few rows, and for tiny tables PostgreSQL correctly prefers a
  * sequential scan. {@code SET LOCAL enable_seqscan = off} (scoped to this transaction only)
@@ -64,7 +64,25 @@ class QueryPlanIT extends AbstractIntegrationTest {
             // Step 3.5: erasure deletes everything else that belongs to the account.
             "erase: delete sessions         | DELETE FROM refresh_tokens WHERE user_id = " + ID + "                              | idx_refresh_tokens_user_id",
             "erase: delete email links      | DELETE FROM account_tokens WHERE user_id = " + ID + "                              | idx_account_tokens_user_purpose",
-            "erase: delete role assignments | DELETE FROM user_roles WHERE user_id = " + ID + "                                  | pk_user_roles"
+            "erase: delete role assignments | DELETE FROM user_roles WHERE user_id = " + ID + "                                  | pk_user_roles",
+            // Phase 4: organisations. Membership checks run on every seller request (step 4.4).
+            "org: storefront by slug        | SELECT * FROM organizations WHERE slug = 'acme-store'                                | uk_organizations_slug",
+            "org: approval queue, newest    | SELECT id FROM organizations WHERE status = 'PENDING_APPROVAL' ORDER BY id DESC LIMIT 20 | idx_organizations_status_id",
+            "org: my organisations          | SELECT organization_id, role FROM organization_members WHERE user_id = " + ID + "     | idx_organization_members_user_id",
+            "org: guard (every seller call) | SELECT m.role, o.status FROM organization_members m JOIN organizations o ON o.id = m.organization_id WHERE m.organization_id = " + ID + " AND m.user_id = " + ID + " | pk_organizations",
+            "org: guard, membership side    | SELECT m.role, o.status FROM organization_members m JOIN organizations o ON o.id = m.organization_id WHERE m.organization_id = " + ID + " AND m.user_id = " + ID + " | pk_organization_members or idx_organization_members_user_id",
+            "org: owner IDs (last owner)    | SELECT user_id FROM organization_members WHERE organization_id = " + ID + " AND role = 'OWNER' | pk_organization_members",
+            "org: owners left (last owner)  | SELECT count(*) FROM organization_members WHERE organization_id = " + ID + " AND role = 'OWNER' | pk_organization_members",
+            "org: owned limit (create)      | SELECT count(*) FROM organization_members m JOIN organizations o ON o.id = m.organization_id WHERE m.user_id = " + ID + " AND m.role = 'OWNER' AND o.status <> 'CLOSED' | idx_organization_members_user_id",
+            "org: my organisations, page    | SELECT o.id, o.slug, m.role FROM organization_members m JOIN organizations o ON o.id = m.organization_id WHERE m.user_id = " + ID + " ORDER BY o.id DESC LIMIT 20 | idx_organization_members_user_id",
+            "org: accept, invitation locked | SELECT * FROM organization_invitations WHERE token_hash = " + HASH + " FOR UPDATE    | uk_organization_invitations_token_hash",
+            "org: open invitation for email | SELECT id FROM organization_invitations WHERE organization_id = " + ID + " AND email = 'bob@example.com' AND accepted_at IS NULL AND revoked_at IS NULL | uk_organization_invitations_open or idx_organization_invitations_email",
+            "org: pending invitations, page | SELECT id FROM organization_invitations WHERE organization_id = " + ID + " AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > now() ORDER BY created_at DESC, id DESC LIMIT 20 | uk_organization_invitations_open",
+            "admin: organisations, newest   | SELECT id FROM organizations ORDER BY id DESC LIMIT 20                              | pk_organizations",
+            "departure: owned open, locked  | SELECT o.id FROM organizations o WHERE o.status <> 'CLOSED' AND o.id IN (SELECT m.organization_id FROM organization_members m WHERE m.user_id = " + ID + " AND m.role = 'OWNER') ORDER BY o.id FOR UPDATE OF o | idx_organization_members_user_id",
+            "erase: delete memberships      | DELETE FROM organization_members WHERE user_id = " + ID + "                         | idx_organization_members_user_id",
+            "erase: delete invitations      | DELETE FROM organization_invitations WHERE email = 'bob@example.com'                | idx_organization_invitations_email",
+            "org: member list, page         | SELECT user_id, role FROM organization_members WHERE organization_id = " + ID + " ORDER BY joined_at, user_id LIMIT 20 | pk_organization_members"
     })
     void hotQueryUsesItsIndex(String name, String sql, String expectedIndex) {
         String plan = tx.execute(status -> {
@@ -73,7 +91,9 @@ class QueryPlanIT extends AbstractIntegrationTest {
             return String.join("\n", lines);
         });
 
-        assertThat(plan).as(name + "\n" + plan).contains(expectedIndex).doesNotContain("Seq Scan");
+        // "a or b": two indexes are equally selective here, and either one is a good plan.
+        assertThat(plan).as(name + "\n" + plan).doesNotContain("Seq Scan");
+        assertThat(expectedIndex.split(" or ")).as(name + "\n" + plan).anyMatch(plan::contains);
     }
 
     /**
@@ -103,12 +123,34 @@ class QueryPlanIT extends AbstractIntegrationTest {
         jdbc.execute("""
                 INSERT INTO user_roles (user_id, role_id)
                 SELECT u.id, r.id FROM users u, roles r WHERE u.email LIKE 'plan-%' AND r.code = 'CUSTOMER'""");
-        jdbc.execute("ANALYZE users, refresh_tokens, account_tokens, user_roles");
+        // One seller per 2.5 accounts, each with its founder as owner and one staff member.
+        jdbc.execute("""
+                INSERT INTO organizations (id, slug, name, status, created_by)
+                SELECT gen_random_uuid(), 'plan-' || substr(md5(u.id::text), 1, 20), 'Plan shop',
+                       CASE WHEN row_number() OVER () % 20 = 0 THEN 'PENDING_APPROVAL' ELSE 'ACTIVE' END, u.id
+                FROM users u WHERE u.email LIKE 'plan-%' AND random() < 0.4""");
+        jdbc.execute("""
+                INSERT INTO organization_members (organization_id, user_id, role)
+                SELECT o.id, o.created_by, 'OWNER' FROM organizations o WHERE o.slug LIKE 'plan-%'""");
+        jdbc.execute("""
+                INSERT INTO organization_members (organization_id, user_id, role)
+                SELECT o.id, u.id, 'STAFF' FROM organizations o
+                JOIN users u ON u.email = 'plan-' || (1 + abs(hashtext(o.id::text)) % 5000) || '@plan.test'
+                WHERE o.slug LIKE 'plan-%' AND u.id <> o.created_by""");
+        jdbc.execute("""
+                INSERT INTO organization_invitations (id, organization_id, email, role, token_hash, created_at, expires_at)
+                SELECT gen_random_uuid(), o.id, 'inv-' || o.id || '@plan.test', 'STAFF',
+                       encode(sha256(convert_to('i' || o.id::text, 'UTF8')), 'hex'), now(), now() + interval '7 days'
+                FROM organizations o WHERE o.slug LIKE 'plan-%'""");
+        jdbc.execute("ANALYZE users, refresh_tokens, account_tokens, user_roles, organizations, organization_members, "
+                + "organization_invitations");
     }
 
     @AfterAll
     void removeVolume() {
+        jdbc.update("DELETE FROM organizations WHERE slug LIKE 'plan-%'"); // cascades to members and invitations
         jdbc.update("DELETE FROM users WHERE email LIKE 'plan-%@plan.test'"); // cascades to tokens and roles
-        jdbc.execute("ANALYZE users, refresh_tokens, account_tokens, user_roles");
+        jdbc.execute("ANALYZE users, refresh_tokens, account_tokens, user_roles, organizations, organization_members, "
+                + "organization_invitations");
     }
 }

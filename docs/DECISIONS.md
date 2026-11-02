@@ -15,6 +15,7 @@ An ADR records one significant decision: the context, the choice, and its conseq
 | [ADR-009](adr/ADR-009-refresh-token-storage.md) | Hashed, rotating refresh tokens in an HttpOnly cookie | Accepted |
 | [ADR-010](adr/ADR-010-authorization-model.md) | Permission-based RBAC with authorities in the access token | Accepted |
 | [ADR-011](adr/ADR-011-pagination.md) | Offset pagination for back-office lists, keyset where data is large or moving | Accepted |
+| [ADR-012](adr/ADR-012-tenancy-model.md) | Marketplace tenancy with shared tables and explicit organisation scoping | Accepted |
 
 Template for new ADRs:
 

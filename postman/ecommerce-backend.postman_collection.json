@@ -459,6 +459,323 @@
       ]
     },
     {
+      "name": "Organisations",
+      "description": "Seller organisations as their members see them. Any signed-in account can create one and becomes its owner; it starts PENDING_APPROVAL. Non-members get 404.",
+      "item": [
+        {
+          "name": "Create organisation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"my-shop-{{$randomInt}}\",\n  \"name\": \"My Shop\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/organizations",
+            "description": "Slug: 3 to 50 lower-case letters, digits and hyphens; immutable. 409 ORG_SLUG_TAKEN or ORG_LIMIT_REACHED (3 owned). Saves {{orgId}} and {{orgVersion}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const org = pm.response.json().data;",
+                  "pm.environment.set('orgId', org.id);",
+                  "pm.environment.set('orgVersion', org.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My organisations",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/organizations?page=0&size=20",
+            "description": "Newest first, with your role in each."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get organisation",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}",
+            "description": "Includes myRole and myPermissions. Saves {{orgVersion}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('orgVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rename organisation",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Shop Berlin\",\n  \"version\": {{orgVersion}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}",
+            "description": "Owner or manager. Send the version you read; 409 CONCURRENT_MODIFICATION otherwise. 409 ORG_INVALID_STATUS when suspended or closed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('orgVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Close organisation (owner, irreversible)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/close",
+            "description": "Owners only. Data and slug are kept; open invitations are revoked. 409 ORG_INVALID_STATUS when suspended."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Organisations: members",
+      "description": "Invitations need the invitee's consent: they accept the emailed link while signed in with the invited address. Get the token from Mailpit (Dev tools) into {{invitationToken}}.",
+      "item": [
+        {
+          "name": "Invite member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{inviteeEmail}}\",\n  \"role\": \"STAFF\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/invitations",
+            "description": "MEMBER_MANAGE; the role must be below yours (owners may invite owners). Inviting the same address again replaces the link. Saves {{invitationId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('invitationId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pending invitations",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/invitations",
+            "description": "MEMBER_MANAGE. Open, unexpired invitations, newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Revoke invitation",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/invitations/{{invitationId}}",
+            "description": "Idempotent. The link stops working."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accept invitation (as the invitee)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{invitationToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/organizations/invitations/accept",
+            "description": "Sign in as the invited address first. 400 ORG_INVALID_INVITATION for unknown, used, revoked, expired or someone else's link."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Members",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/members",
+            "description": "Any member. Longest-serving first. Saves the newest member as {{memberId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const m = pm.response.json().data.content;",
+                  "if (m.length > 1) { pm.environment.set('memberId', m[m.length - 1].userId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change member role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"MANAGER\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/members/{{memberId}}",
+            "description": "MEMBER_MANAGE; current and new role below yours. 409 ORG_LAST_OWNER when demoting the last owner."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove member",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/members/{{memberId}}",
+            "description": "MEMBER_MANAGE and a higher rank. Not yourself: use Leave."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leave organisation",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/leave",
+            "description": "Any member. 409 ORG_LAST_OWNER for the last owner of an open organisation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Administration: roles and permissions",
       "item": [
         {
@@ -824,6 +1141,138 @@
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "pm.test('erased', () => pm.expect(pm.response.json().data.status).to.eql('ERASED'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Administration: organisations",
+      "description": "Platform staff (org:read, org:manage). Not allowed on an organisation you are a member of (403 ORG_CONFLICT_OF_INTEREST).",
+      "item": [
+        {
+          "name": "Approval queue",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/organizations?status=PENDING_APPROVAL&page=0&size=20",
+            "description": "Requires org:read. Saves the newest pending one as {{adminOrgId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const first = pm.response.json().data.content[0];",
+                  "if (first) { pm.environment.set('adminOrgId', first.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get organisation (admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/organizations/{{adminOrgId}}",
+            "description": "Requires org:read. Includes the internal status reason and member counts."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve organisation",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/organizations/{{adminOrgId}}/approve",
+            "description": "Requires org:manage. PENDING_APPROVAL only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suspend organisation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Counterfeit goods, case 4711\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/organizations/{{adminOrgId}}/suspend",
+            "description": "Requires org:manage. ACTIVE only. The reason is never shown to members."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reactivate organisation",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/organizations/{{adminOrgId}}/reactivate",
+            "description": "Requires org:manage. SUSPENDED only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Close organisation (admin, irreversible)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/organizations/{{adminOrgId}}/close",
+            "description": "Requires org:manage. Any status except CLOSED."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
                 ]
               }
             }

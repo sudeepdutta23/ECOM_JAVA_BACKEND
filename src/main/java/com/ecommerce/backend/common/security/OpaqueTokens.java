@@ -1,4 +1,4 @@
-package com.ecommerce.backend.auth.security;
+package com.ecommerce.backend.common.security;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -9,7 +9,8 @@ import java.util.HexFormat;
 import org.springframework.stereotype.Component;
 
 /**
- * Creates and hashes opaque tokens: refresh tokens, email verification and password reset links.
+ * Creates and hashes opaque tokens: refresh tokens, email verification and password reset links,
+ * organisation invitations. In common because more than one module issues them.
  *
  * <ul>
  *   <li>256 random bits from {@link SecureRandom}, the JDK's cryptographically strong source.

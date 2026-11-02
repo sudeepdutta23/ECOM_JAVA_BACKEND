@@ -1,6 +1,7 @@
 package com.ecommerce.backend.rbac.service;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,14 +12,22 @@ import java.util.UUID;
  * points {@code auth -> rbac}), yet assigning a role needs "does this user exist?" and the
  * last-admin rule needs "which admins are still active?". rbac declares the question; auth answers
  * it. This is dependency inversion: the arrow in the code stays {@code auth -> rbac}.
+ *
+ * <p>The org module asks the same questions and reuses this port (docs/modules/ORGANIZATIONS.md).
  */
 public interface UserDirectory {
 
     /** False for unknown and for erased accounts: an erased account can hold no roles again. */
     boolean exists(UUID userId);
 
+    /** Whether this account can currently sign in. */
+    boolean isActive(UUID userId);
+
     /** How many of the given users can currently sign in. */
     long countActive(Collection<UUID> userIds);
+
+    /** Emails of the given accounts, for member lists and invitation checks. Unknown IDs are absent. */
+    Map<UUID, String> emailsOf(Collection<UUID> userIds);
 
     /** The ID of the active account with this email, if any. Normalization is the implementation's job. */
     Optional<UUID> findActiveUserId(String email);

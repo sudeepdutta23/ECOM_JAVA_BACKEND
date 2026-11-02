@@ -4,6 +4,7 @@ import com.ecommerce.backend.auth.entity.User;
 import com.ecommerce.backend.auth.event.AccountErased;
 import com.ecommerce.backend.auth.repository.AccountTokenRepository;
 import com.ecommerce.backend.auth.repository.RefreshTokenRepository;
+import com.ecommerce.backend.org.service.MemberDeparture;
 import com.ecommerce.backend.rbac.service.RoleAssignmentService;
 import java.time.Instant;
 import java.util.UUID;
@@ -27,18 +28,21 @@ class AccountEraser {
     private final RefreshTokenRepository refreshTokens;
     private final AccountTokenRepository accountTokens;
     private final RoleAssignmentService roleAssignments;
+    private final MemberDeparture organizations;
     private final ApplicationEventPublisher events;
 
     AccountEraser(RefreshTokenRepository refreshTokens, AccountTokenRepository accountTokens,
-                  RoleAssignmentService roleAssignments, ApplicationEventPublisher events) {
+                  RoleAssignmentService roleAssignments, MemberDeparture organizations,
+                  ApplicationEventPublisher events) {
         this.refreshTokens = refreshTokens;
         this.accountTokens = accountTokens;
         this.roleAssignments = roleAssignments;
+        this.organizations = organizations;
         this.events = events;
     }
 
     /** What was removed, for the log line. */
-    record Erasure(int sessionTokens, int emailLinks, int roles) {
+    record Erasure(int sessionTokens, int emailLinks, int roles, MemberDeparture.Removed organizationData) {
     }
 
     /**
@@ -49,6 +53,7 @@ class AccountEraser {
     public Erasure erase(User user, UUID by, Instant now) {
         UUID userId = user.getId();
         roleAssignments.requireCanLeave(userId); // locks the ADMIN row until commit
+        organizations.requireNotSoleOwner(userId); // locks the organisations the user owns
         String email = user.getEmail();          // read before the bulk deletes clear the context
 
         user.erase(by, now);
@@ -56,8 +61,9 @@ class AccountEraser {
         int sessionTokens = refreshTokens.deleteAllByUserId(userId);
         int emailLinks = accountTokens.deleteAllByUserId(userId);
         int roles = roleAssignments.removeAllRoles(userId);
+        MemberDeparture.Removed organizationData = organizations.forget(userId, email);
 
         events.publishEvent(new AccountErased(email));
-        return new Erasure(sessionTokens, emailLinks, roles);
+        return new Erasure(sessionTokens, emailLinks, roles, organizationData);
     }
 }
