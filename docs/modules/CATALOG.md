@@ -114,6 +114,10 @@ Every catalogue write uses it. `CatalogIT.aSuspensionWaitsForASellerWriteInProgr
 
 `products.organization_id` references `organizations` with RESTRICT: the application never deletes organisations (they are closed), and a stray `DELETE` must not take a seller's history with it.
 
+## 8a. Images (Phase 8)
+
+Product images and their upload pipeline are described in [FILES.md](FILES.md).
+
 ## 9. Plan
 
 | Step | Content |

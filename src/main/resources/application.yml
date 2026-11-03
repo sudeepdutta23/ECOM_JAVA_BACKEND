@@ -61,6 +61,13 @@ spring:
         await-termination: true
         await-termination-period: 10s
 
+  # Uploads (Phase 8): rejected with 413 before a handler sees them. Images are re-encoded anyway,
+  # so 5 MB is plenty for a product photo.
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
   jackson:
     default-property-inclusion: non_null
     time-zone: UTC
@@ -81,7 +88,13 @@ server:
   servlet:
     encoding:
       charset: UTF-8
-      force: true
+      # Requests only: a forced response charset would turn image/png into "image/png;charset=UTF-8".
+      # JSON is UTF-8 by definition (RFC 8259) and Jackson writes UTF-8.
+      force-request: true
+  tomcat:
+    # Read and discard the rest of an upload above the multipart limit (6 MB), so the client
+    # receives the 413 instead of a connection reset.
+    max-swallow-size: 10MB
 
 management:
   endpoints:
@@ -158,6 +171,14 @@ app:
   catalog:
     # The one platform currency (ISO 4217, two decimal places). Every price is in it.
     currency: ${CATALOG_CURRENCY:EUR}
+
+  files:
+    # Where uploaded files live. "local" writes below local-dir (dev, test, a single server);
+    # a production cluster needs shared storage such as S3 behind the same FileStorage port.
+    storage: local
+    local-dir: ${FILES_LOCAL_DIR:${java.io.tmpdir}/ecommerce-files}
+    # Images per product: bounds storage per seller and the storefront response.
+    max-images-per-product: 8
 
   notification:
     # Email links point here; each notification carries a path inside the app.

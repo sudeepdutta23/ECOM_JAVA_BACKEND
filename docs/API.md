@@ -122,6 +122,11 @@ Send `X-Request-Id` (8 to 64 characters, letters, digits, `.`, `_`, `-`) to corr
 | GET | `/api/v1/catalog/products?category=&seller=&page=&size=` | Public | Products on sale (active sellers only), newest first; `inStock`, no stock counts |
 | GET | `/api/v1/catalog/products/{productId}` | Public | One product on sale; 404 for anything else |
 | GET | `/api/v1/catalog/categories` | Public | All categories, by name |
+| GET | `/api/v1/catalog/products/{productId}/images/{imageId}` | Public | The image bytes while the product is on sale; cached a day |
+| POST | `/api/v1/organizations/{orgId}/products/{productId}/images` | Bearer, `CATALOG_MANAGE` | multipart `file`: JPEG or PNG, at most 5 MB (413 above); re-encoded; 409 `CATALOG_IMAGE_LIMIT` at 8 |
+| GET | `/api/v1/organizations/{orgId}/products/{productId}/images` | Bearer, member | The product's images |
+| GET | `/api/v1/organizations/{orgId}/products/{productId}/images/{imageId}/content` | Bearer, member | Preview, also for drafts; `no-store` |
+| DELETE | `/api/v1/organizations/{orgId}/products/{productId}/images/{imageId}` | Bearer, `CATALOG_MANAGE` | 204; the file goes after commit |
 | POST | `/api/v1/organizations/{orgId}/products` | Bearer, `CATALOG_MANAGE` | Create a DRAFT `{sku, name, description, price, categoryId}`; 201; 409 `CATALOG_SKU_TAKEN` |
 | GET | `/api/v1/organizations/{orgId}/products?status=&page=&size=` | Bearer, member | The shop's products with stock |
 | GET | `/api/v1/organizations/{orgId}/products/{productId}` | Bearer, member | One product |

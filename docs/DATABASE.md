@@ -194,6 +194,10 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 
 `notifications` (the inbox; internal links only, CHECKed) with `idx_notifications_user_id (user_id, id)` and the partial `idx_notifications_unread (user_id) WHERE read_at IS NULL` for the badge; `notification_preferences` (one optional row per account). Details: [modules/NOTIFICATIONS.md](modules/NOTIFICATIONS.md#7-data-model-v16).
 
+## Phase 8 changes (V17, files)
+
+`product_images`: metadata of re-encoded product images (bytes in `FileStorage`), tenant column, CHECKs on type, size and dimensions, `idx_product_images_product_id (product_id, id)`. Details: [modules/FILES.md](modules/FILES.md).
+
 ## Migration history
 
 | Version | Description |
@@ -214,3 +218,4 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 | V14 | cart_items: one cart per account, quantities only |
 | V15 | checkouts, orders, order_items: one order per seller, snapshots, idempotency key, payment reference |
 | V16 | notifications, notification_preferences |
+| V17 | product_images |

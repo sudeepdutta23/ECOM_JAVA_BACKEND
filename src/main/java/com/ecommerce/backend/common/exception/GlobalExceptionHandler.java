@@ -136,6 +136,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).headers(headers).body(body);
     }
 
+    /** An upload above {@code spring.servlet.multipart.max-file-size}: rejected before any code reads it. */
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            org.springframework.web.multipart.MaxUploadSizeExceededException ex, HttpHeaders headers,
+            HttpStatusCode status, WebRequest request) {
+        ProblemDetail body = problem(ErrorCode.PAYLOAD_TOO_LARGE, "The file is too large", pathOf(request), null);
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).headers(headers).body(body);
+    }
+
     /** Unparseable JSON, wrong types, or unknown fields. Never echo the parser message. */
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,

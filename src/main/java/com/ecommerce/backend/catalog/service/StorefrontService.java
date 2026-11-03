@@ -3,7 +3,9 @@ package com.ecommerce.backend.catalog.service;
 import com.ecommerce.backend.catalog.dto.StorefrontProductResponse;
 import com.ecommerce.backend.catalog.entity.Category;
 import com.ecommerce.backend.catalog.entity.Product;
+import com.ecommerce.backend.catalog.entity.ProductImage;
 import com.ecommerce.backend.catalog.repository.CategoryRepository;
+import com.ecommerce.backend.catalog.repository.ProductImageRepository;
 import com.ecommerce.backend.catalog.repository.ProductRepository;
 import com.ecommerce.backend.catalog.repository.StorefrontSearch;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
@@ -28,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
  * The public storefront: ACTIVE products of ACTIVE sellers, nothing else. A draft, an archived
  * product and anything of a pending or suspended seller answer 404, like an ID that never existed.
  *
- * <p>A page costs three queries whatever its size: the products, their categories, their sellers.
+ * <p>A page costs four queries whatever its size: the products, their categories, their sellers, their images.
  * Full-text search and richer filters come in Phase 10.
  */
 @Service
@@ -39,11 +41,14 @@ public class StorefrontService {
     private final ProductRepository products;
     private final CategoryRepository categories;
     private final SellerDirectory sellers;
+    private final ProductImageRepository images;
 
-    public StorefrontService(ProductRepository products, CategoryRepository categories, SellerDirectory sellers) {
+    public StorefrontService(ProductRepository products, CategoryRepository categories, SellerDirectory sellers,
+                             ProductImageRepository images) {
         this.products = products;
         this.categories = categories;
         this.sellers = sellers;
+        this.images = images;
     }
 
     /** @param categorySlug optional; @param sellerSlug optional. An unknown slug gives an empty page. */
@@ -73,11 +78,14 @@ public class StorefrontService {
                 .collect(Collectors.toMap(Category::getId, Function.identity()));
         Map<UUID, SellerInfo> sellerById = sellers.activeSellers(found.stream().map(Product::getOrganizationId)
                 .distinct().toList());
+        Map<UUID, List<ProductImage>> imagesByProduct = images.findByProductIdInOrderByIdAsc(
+                        found.stream().map(Product::getId).toList()).stream()
+                .collect(Collectors.groupingBy(ProductImage::getProductId));
         // A seller suspended between the two queries is dropped rather than shown.
         List<StorefrontProductResponse> content = found.stream()
                 .filter(product -> sellerById.containsKey(product.getOrganizationId()))
                 .map(product -> StorefrontProductResponse.from(product, categoryById.get(product.getCategoryId()),
-                        sellerById.get(product.getOrganizationId())))
+                        sellerById.get(product.getOrganizationId()), imagesByProduct.getOrDefault(product.getId(), List.of())))
                 .toList();
         return PageResponse.from(new PageImpl<>(content, request, found.getTotalElements()), Function.identity());
     }
@@ -92,6 +100,6 @@ public class StorefrontService {
         }
         Category category = product.getCategoryId() == null ? null
                 : categories.findById(product.getCategoryId()).orElse(null);
-        return StorefrontProductResponse.from(product, category, seller);
+        return StorefrontProductResponse.from(product, category, seller, images.findByProductIdOrderByIdAsc(productId));
     }
 }

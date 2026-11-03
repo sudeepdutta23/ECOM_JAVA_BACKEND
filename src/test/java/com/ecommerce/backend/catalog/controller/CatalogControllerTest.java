@@ -15,6 +15,7 @@ import com.ecommerce.backend.catalog.ProductStatus;
 import com.ecommerce.backend.catalog.dto.ProductRequest;
 import com.ecommerce.backend.catalog.dto.ProductResponse;
 import com.ecommerce.backend.catalog.service.CategoryService;
+import com.ecommerce.backend.catalog.service.ProductImageService;
 import com.ecommerce.backend.catalog.service.ProductService;
 import com.ecommerce.backend.catalog.service.StorefrontService;
 import com.ecommerce.backend.common.security.SecurityConfig;
@@ -54,6 +55,9 @@ class CatalogControllerTest {
 
     @MockitoBean
     private CategoryService categories;
+
+    @MockitoBean
+    private ProductImageService images;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;

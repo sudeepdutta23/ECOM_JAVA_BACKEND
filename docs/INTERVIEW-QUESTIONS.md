@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-205 questions so far.
+213 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -20,6 +20,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 5: Profile](#phase-5-profile) | 24 | [modules/PROFILE.md](modules/PROFILE.md) |
 | [Phase 6: Core business (catalogue and orders)](#phase-6-core-business-catalogue-and-orders) | 29 | [modules/CATALOG.md](modules/CATALOG.md) |
 | [Phase 7: Notifications](#phase-7-notifications) | 8 | [modules/NOTIFICATIONS.md](modules/NOTIFICATIONS.md) |
+| [Phase 8: Files](#phase-8-files) | 8 | [modules/FILES.md](modules/FILES.md) |
 
 ## Phase 0: Setup
 
@@ -365,4 +366,19 @@ Design: [modules/NOTIFICATIONS.md](modules/NOTIFICATIONS.md).
 6. How does a partial index keep an unread badge cheap, and what would a plain index on `(user_id, read_at)` cost instead?
 7. Why can a person switch off order emails but not password-reset emails?
 8. How do you make sure an erased person gets no new notifications, even for orders that are still being fulfilled?
+
+## Phase 8: Files
+
+Design: [modules/FILES.md](modules/FILES.md).
+
+### Steps 8.1 and 8.2: Product images and review
+
+1. Why decide a file's type from its first bytes instead of its name or Content-Type? What could an SVG uploaded as `.png` do?
+2. What does re-encoding an image remove, and why is that better than trying to detect malicious content?
+3. What is a decompression bomb, and why must the dimensions be checked before the image is decoded?
+4. Why must a storage key never contain the uploaded file name? Name two independent defences against path traversal.
+5. How do you keep a stored file and its database row consistent when the transaction rolls back, and when it commits?
+6. Why serve images with the stored content type and `nosniff`, and why must binary responses carry no forced charset?
+7. Why does an oversized upload need `max-swallow-size` to produce a 413 instead of a connection reset?
+8. What changes when the application runs on several servers, and why does the `FileStorage` port make that change small?
 

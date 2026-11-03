@@ -30,6 +30,8 @@
         <!-- Overrides the Boot-managed 1.21.3, which cannot talk to Docker Engine 29+ (HTTP 400 on /info) -->
         <testcontainers.version>1.21.4</testcontainers.version>
         <archunit.version>1.4.1</archunit.version>
+        <!-- Empty default, so @{argLine} resolves when no other plugin (JaCoCo, Phase 17) sets it -->
+        <argLine/>
     </properties>
 
     <dependencies>
@@ -198,16 +200,40 @@
                 </configuration>
             </plugin>
 
+            <!--
+                Exposes ${org.mockito:mockito-core:jar} (the jar's path) for the javaagent below. JDK 21
+                warns about, and later JDKs refuse, agents that attach themselves at runtime; Mockito's
+                self-attach also failed intermittently here ("Could not self-attach to current VM").
+                Loading it as a -javaagent from the start is the fix the Mockito documentation gives.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- Unit tests (*Test.java) run during `mvn test`, no Docker needed -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off</argLine>
+                </configuration>
             </plugin>
 
             <!-- Integration tests (*IT.java) run during `mvn verify` and need Docker -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off</argLine>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>

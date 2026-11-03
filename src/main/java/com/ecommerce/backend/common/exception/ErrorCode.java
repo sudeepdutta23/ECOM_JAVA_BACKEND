@@ -20,6 +20,7 @@ public enum ErrorCode {
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "Resource already exists"),
     DATA_INTEGRITY_VIOLATION(HttpStatus.CONFLICT, "Request conflicts with existing data"),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported media type"),
+    PAYLOAD_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "Request too large"),
     BUSINESS_RULE_VIOLATION(HttpStatus.UNPROCESSABLE_ENTITY, "Business rule violation"),
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "Too many requests"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error"),
@@ -69,6 +70,7 @@ public enum ErrorCode {
     CATALOG_CATEGORY_IN_USE(HttpStatus.CONFLICT, "Category still has products"),
     CATALOG_INVALID_STATUS(HttpStatus.CONFLICT, "Not allowed in the product's current status"),
     CATALOG_STOCK_INSUFFICIENT(HttpStatus.CONFLICT, "Not enough stock"),
+    CATALOG_IMAGE_LIMIT(HttpStatus.CONFLICT, "Too many images for this product"),
 
     // ----- Orders (Phase 6) -----
     ORDER_CART_FULL(HttpStatus.CONFLICT, "Cart is full"),
@@ -104,6 +106,7 @@ public enum ErrorCode {
             case 404 -> RESOURCE_NOT_FOUND;
             case 405 -> METHOD_NOT_ALLOWED;
             case 409 -> DATA_INTEGRITY_VIOLATION;
+            case 413 -> PAYLOAD_TOO_LARGE;
             case 415 -> UNSUPPORTED_MEDIA_TYPE;
             case 422 -> BUSINESS_RULE_VIOLATION;
             case 429 -> TOO_MANY_REQUESTS;

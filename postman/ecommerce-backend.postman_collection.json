@@ -1144,6 +1144,93 @@
               }
             }
           ]
+        },
+        {
+          "name": "Upload product image",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products/{{productId}}/images",
+            "description": "multipart/form-data, field 'file': choose a JPEG or PNG (at most 5 MB, 6000 px a side). Detected from the bytes and re-encoded without metadata. 409 CATALOG_IMAGE_LIMIT at 8.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('imageId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List product images",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products/{{productId}}/images",
+            "description": "Upload order."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Preview product image",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products/{{productId}}/images/{{imageId}}/content",
+            "description": "Also for drafts; never cached."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete product image",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products/{{productId}}/images/{{imageId}}",
+            "description": "The file goes after commit."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -1320,6 +1407,28 @@
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/catalog/categories",
             "description": "All, by name.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Product image",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/catalog/products/{{productId}}/images/{{imageId}}",
+            "description": "Public for products on sale; cached for a day.",
             "auth": {
               "type": "noauth"
             }

@@ -145,6 +145,14 @@ Set `app.security.password-hashing.max-concurrent` and `app.auth.failed-login-mi
 - A suspended seller sells nothing: the catalogue and checkout lock the seller's row ([modules/CATALOG.md](modules/CATALOG.md#5-the-seller-lock-closes-a-phase-4-accepted-risk)).
 - Production requires a real payment provider (`PAYMENT_PROVIDER`); the simulator exists only in dev and test.
 
+## Uploads (Phase 8)
+
+- The type is decided from the bytes (JPEG and PNG signatures), never from the file name or Content-Type.
+- Every image is decoded and re-encoded without metadata: EXIF, appended payloads and polyglots do not survive.
+- Dimensions are checked from the header before decoding (decompression bombs); size limits answer 413 before any handler.
+- Storage keys are made by the server; the key pattern and a root check stop path traversal twice.
+- Served bytes carry the stored content type and `X-Content-Type-Options: nosniff`. Details: [modules/FILES.md](modules/FILES.md).
+
 ## Never log
 
 Passwords, password hashes, JWTs, refresh tokens, reset tokens, secrets, full card or ID numbers. Personal data: emails, names, phone numbers, addresses (log the user ID instead; entities and DTOs that hold such data override `toString`).

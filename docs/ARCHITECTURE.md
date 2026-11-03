@@ -44,6 +44,7 @@ com.ecommerce.backend
     persistence/     BaseEntity, UUID v7 generator
     response/        ApiResponse envelope, FieldErrorDetail
     security/        SecurityConfig, CORS, headers, 401/403 handlers, rate limiting
+    storage/         FileStorage port and its local implementation (Phase 8, docs/modules/FILES.md)
     util/            UuidV7, Masking
     web/             RequestIdFilter
   system/            connectivity endpoint

@@ -54,7 +54,7 @@ class TenantIsolationIT extends AbstractIntegrationTest {
     private static final Pattern PATH_VARIABLE = Pattern.compile("\\{([^}]+)}");
     private static final Set<String> BODY_METHODS = Set.of("post", "put", "patch");
     /** The org endpoints of this phase; later phases only add. Guards against discovering nothing. */
-    private static final int KNOWN_ORG_OPERATIONS = 22;
+    private static final int KNOWN_ORG_OPERATIONS = 26;
 
     @Autowired
     private TestRestTemplate rest;
@@ -101,6 +101,7 @@ class TenantIsolationIT extends AbstractIntegrationTest {
                 "userId", staffId.toString(),
                 "invitationId", read(invitation).at("/data/id").asText(),
                 "productId", productId,
+                "imageId", image(ownerToken, productId),
                 "orderId", paidOrder(target, staffId, UUID.fromString(productId)).toString());
 
         outsiderToken = token(account("outsider"));
@@ -174,6 +175,12 @@ class TenantIsolationIT extends AbstractIntegrationTest {
         String url = fill(operation.path(), organizationId, fixtures);
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(outsiderToken);
+        if (operation.spec().at("/requestBody/content/multipart~1form-data").isObject()) {
+            // An upload: a real image, so the request passes the multipart parsing and the guard answers.
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            return rest.exchange(url, HttpMethod.valueOf(operation.method().toUpperCase(Locale.ROOT)),
+                    new HttpEntity<>(imageForm(), headers), String.class);
+        }
         headers.setContentType(MediaType.APPLICATION_JSON);
         String body = BODY_METHODS.contains(operation.method()) ? sampleBody(operation.spec()) : null;
         return rest.exchange(url, HttpMethod.valueOf(operation.method().toUpperCase(Locale.ROOT)),
@@ -237,7 +244,35 @@ class TenantIsolationIT extends AbstractIntegrationTest {
                                   FROM products p WHERE p.organization_id = o.id)
                        || '|' || (SELECT string_agg(x.id || ':' || x.status || ':' || x.version, ',' ORDER BY x.id)
                                   FROM orders x WHERE x.organization_id = o.id)
+                       || '|' || (SELECT count(*) FROM product_images i WHERE i.organization_id = o.id)
                 FROM organizations o WHERE o.id = ?""", String.class, organizationId);
+    }
+
+    private static org.springframework.util.MultiValueMap<String, Object> imageForm() {
+        java.io.ByteArrayOutputStream png = new java.io.ByteArrayOutputStream();
+        try {
+            javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(4, 4, java.awt.image.BufferedImage.TYPE_INT_RGB),
+                    "png", png);
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
+        org.springframework.util.LinkedMultiValueMap<String, Object> form = new org.springframework.util.LinkedMultiValueMap<>();
+        form.add("file", new org.springframework.core.io.ByteArrayResource(png.toByteArray()) {
+            @Override
+            public String getFilename() {
+                return "isolation.png";
+            }
+        });
+        return form;
+    }
+
+    private String image(String ownerToken, String productId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(ownerToken);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        String response = rest.exchange("/api/v1/organizations/" + target + "/products/" + productId + "/images",
+                HttpMethod.POST, new HttpEntity<>(imageForm(), headers), String.class).getBody();
+        return read(response).at("/data/id").asText();
     }
 
     /** A paid order of the seller, inserted directly: the isolation test needs one, not a whole purchase. */

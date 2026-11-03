@@ -2,10 +2,12 @@ package com.ecommerce.backend.catalog.dto;
 
 import com.ecommerce.backend.catalog.entity.Category;
 import com.ecommerce.backend.catalog.entity.Product;
+import com.ecommerce.backend.catalog.entity.ProductImage;
 import com.ecommerce.backend.common.util.MinorUnits;
 import com.ecommerce.backend.org.SellerInfo;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -21,7 +23,8 @@ public record StorefrontProductResponse(
         @Schema(example = "EUR") String currency,
         @Schema(example = "true") boolean inStock,
         CategoryRef category,
-        SellerRef seller) {
+        SellerRef seller,
+        @Schema(description = "Image URLs, in the seller's upload order") List<String> images) {
 
     public record CategoryRef(@Schema(example = "books") String slug, @Schema(example = "Books") String name) {
     }
@@ -30,10 +33,11 @@ public record StorefrontProductResponse(
     }
 
     /** @param category null if the product has none */
-    public static StorefrontProductResponse from(Product product, Category category, SellerInfo seller) {
+    public static StorefrontProductResponse from(Product product, Category category, SellerInfo seller,
+                                                 List<ProductImage> images) {
         return new StorefrontProductResponse(product.getId(), product.getName(), product.getDescription(),
                 MinorUnits.toAmount(product.getPriceMinor()), product.getCurrency(), product.getStock() > 0,
                 category == null ? null : new CategoryRef(category.getSlug(), category.getName()),
-                new SellerRef(seller.slug(), seller.name()));
+                new SellerRef(seller.slug(), seller.name()), images.stream().map(ProductImageResponse::publicUrl).toList());
     }
 }

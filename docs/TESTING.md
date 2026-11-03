@@ -12,6 +12,10 @@ Surefire runs `*Test`. Failsafe runs `*IT`.
 
 `pom.xml` pins Testcontainers to 1.21.4. The 1.21.3 release managed by Spring Boot 3.5.7 cannot talk to Docker Engine 29 and fails with "Could not find a valid Docker environment" and an HTTP 400. Remove the override once the Spring Boot version manages 1.21.4 or newer.
 
+## Running
+
+Unit and integration tests load Mockito as a `-javaagent` (configured in the POM). JDK 21 restricts agents that attach themselves at runtime, and Mockito's self-attach failed intermittently. If an IDE builds into `target/` while Maven runs, classes can vanish mid-run (`NoClassDefFoundError`, "Unable to find a @SpringBootConfiguration"): run `mvn clean verify` with the IDE's auto-build paused.
+
 ## Principles
 
 - Integration tests use a real PostgreSQL, never H2, because constraints, types and SQL dialect must match production.
@@ -52,7 +56,7 @@ Surefire runs `*Test`. Failsafe runs `*IT`.
 | `RateLimitIT` | Real filter chain in its own context: 11th login and 6th email-sending call refused |
 | `SecurityIT` (CORS and headers) | Allowed and refused preflights, exposed headers, CSP on API but not Swagger UI, Permissions-Policy |
 | `AuthJourneyIT` | One user's full life cycle, plus an audit of all log output: no password, token, hash or full email anywhere |
-| `QueryPlanIT` | `EXPLAIN` of 70 hot auth, rbac, user-admin, organisation, profile, address, catalogue, order and notification queries (with seq scans disabled, over 5 000 synthetic accounts and about 2 000 sellers loaded for the class and removed after) proves each one uses its index. Without the volume, equal costs on tiny tables made the chosen index depend on test order |
+| `QueryPlanIT` | `EXPLAIN` of 71 hot auth, rbac, user-admin, organisation, profile, address, catalogue, order, notification and file queries (with seq scans disabled, over 5 000 synthetic accounts and about 2 000 sellers loaded for the class and removed after) proves each one uses its index. Without the volume, equal costs on tiny tables made the chosen index depend on test order |
 | `UserSearchTest`, `UserAdminControllerTest` | LIKE escaping; defaults, size cap and page validation reported per parameter, enum values listed without Java type names, `user:read` required |
 | `UserAdminIT` | Case-insensitive prefix search newest first, `%` and `_` matched literally, page totals and past-the-end, combined filters, no credentials in responses, detail with roles, sessions, lock and status change |
 | `UserAdminServiceTest` | Order of checks (manage rule, last admin, then revoke), self-action, escalation, invalid status, nothing changes on refusal, atomic unlock, sign-out reason |
@@ -90,6 +94,8 @@ Surefire runs `*Test`. Failsafe runs `*IT`.
 | `MarketplaceJourneyIT` | Phase 6 as one story: two sellers, one customer, one checkout and one payment for two orders; one seller ships and delivers, the other is suspended and cancels with a refund; stock and history add up; log audit |
 | `OrderMessagesTest` | Who hears what per event: paid to customer and every seller member, cancellations to the other side, nothing for an unreachable customer, tracking only when given, deliveries inbox only |
 | `NotificationIT` | A paid order reaches both inboxes and both email boxes (no address in the email), shipping adds the tracking number and the badge counts; read state per person, someone else's notification 404, idempotent read, read-all; switched-off emails are not sent but the inbox fills; erasure empties the inbox and an erased customer gets nothing new |
+| `ImageProcessorTest`, `LocalFileStorageTest` | JPEG and PNG re-encoded; appended payloads gone; no EXIF segment; SVG, HTML, GIF, BMP and empty files refused by their bytes; truncated images refused; a decompression bomb refused from its header; storage round trip, idempotent delete, every traversal key refused |
+| `ProductImageIT` | Over HTTP: upload re-encoded under a server-made key (the file name `../../../etc/passwd.png` never becomes a path); drafts not public but previewable (`no-store`); on sale listed and served with the stored type, `nosniff`, public caching; disguised scripts and empty files 400; 6 MB 413 before any code reads it; eight images at most, deleting removes the file; outsiders 404 |
 | `OrganizationSchemaIT` | V7 and V8: slug format and uniqueness, trimmed name, suspension reason, role CHECK, cascades with organisation and user, SET NULL on founder and actor, ADMIN holds `org:*`, indexes; one open invitation per address, single outcome, normalized email, hex hash, cascade |
 | `UserManagementSchemaIT` | V4: suspension needs a reason, status and revoke-reason checks, SET NULL on the actor, ADMIN holds `user:*`, one email index serving equality and prefix |
 | `BoundedPasswordEncoderTest` | Concurrency cap honoured, fails fast with 503, permits always returned |
