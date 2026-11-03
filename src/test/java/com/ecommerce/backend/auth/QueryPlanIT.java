@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Proves that every hot auth, rbac, user-admin and org query uses the index designed for it.
+ * Proves that every hot auth, rbac, user-admin, org and profile query uses the index designed for it.
  *
  * <p>Test tables hold only a few rows, and for tiny tables PostgreSQL correctly prefers a
  * sequential scan. {@code SET LOCAL enable_seqscan = off} (scoped to this transaction only)
@@ -82,7 +82,15 @@ class QueryPlanIT extends AbstractIntegrationTest {
             "departure: owned open, locked  | SELECT o.id FROM organizations o WHERE o.status <> 'CLOSED' AND o.id IN (SELECT m.organization_id FROM organization_members m WHERE m.user_id = " + ID + " AND m.role = 'OWNER') ORDER BY o.id FOR UPDATE OF o | idx_organization_members_user_id",
             "erase: delete memberships      | DELETE FROM organization_members WHERE user_id = " + ID + "                         | idx_organization_members_user_id",
             "erase: delete invitations      | DELETE FROM organization_invitations WHERE email = 'bob@example.com'                | idx_organization_invitations_email",
-            "org: member list, page         | SELECT user_id, role FROM organization_members WHERE organization_id = " + ID + " ORDER BY joined_at, user_id LIMIT 20 | pk_organization_members"
+            "org: member list, page         | SELECT user_id, role FROM organization_members WHERE organization_id = " + ID + " ORDER BY joined_at, user_id LIMIT 20 | pk_organization_members",
+            // Phase 5: profile and address book. Every write locks the account row first.
+            "profile: save, lock account    | SELECT status FROM users WHERE id = " + ID + " FOR SHARE                           | pk_users",
+            "profile: by account            | SELECT * FROM user_profiles WHERE user_id = " + ID + "                             | pk_user_profiles",
+            "address: my addresses, newest  | SELECT * FROM user_addresses WHERE user_id = " + ID + " ORDER BY id DESC           | idx_user_addresses_user_id",
+            "address: count for the limit   | SELECT count(*) FROM user_addresses WHERE user_id = " + ID + "                     | idx_user_addresses_user_id",
+            "address: one, scoped to owner  | SELECT * FROM user_addresses WHERE id = " + ID + " AND user_id = " + ID + "         | pk_user_addresses or idx_user_addresses_user_id",
+            "address: clear default         | UPDATE user_addresses SET default_shipping = false, version = version + 1 WHERE user_id = " + ID + " AND default_shipping AND id <> " + ID + " | uk_user_addresses_default_shipping or idx_user_addresses_user_id",
+            "erase: delete addresses        | DELETE FROM user_addresses WHERE user_id = " + ID + "                              | idx_user_addresses_user_id"
     })
     void hotQueryUsesItsIndex(String name, String sql, String expectedIndex) {
         String plan = tx.execute(status -> {
@@ -142,15 +150,24 @@ class QueryPlanIT extends AbstractIntegrationTest {
                 SELECT gen_random_uuid(), o.id, 'inv-' || o.id || '@plan.test', 'STAFF',
                        encode(sha256(convert_to('i' || o.id::text, 'UTF8')), 'hex'), now(), now() + interval '7 days'
                 FROM organizations o WHERE o.slug LIKE 'plan-%'""");
+        // A profile and two addresses per account, the first one the default for both.
+        jdbc.execute("""
+                INSERT INTO user_profiles (user_id, given_name)
+                SELECT u.id, 'Plan' FROM users u WHERE u.email LIKE 'plan-%'""");
+        jdbc.execute("""
+                INSERT INTO user_addresses (id, user_id, recipient_name, line1, city, postal_code, country_code,
+                                            default_shipping, default_billing)
+                SELECT gen_random_uuid(), u.id, 'Plan', 'Street ' || g, 'Berlin', '10117', 'DE', g = 1, g = 1
+                FROM users u CROSS JOIN generate_series(1, 2) g WHERE u.email LIKE 'plan-%'""");
         jdbc.execute("ANALYZE users, refresh_tokens, account_tokens, user_roles, organizations, organization_members, "
-                + "organization_invitations");
+                + "organization_invitations, user_profiles, user_addresses");
     }
 
     @AfterAll
     void removeVolume() {
         jdbc.update("DELETE FROM organizations WHERE slug LIKE 'plan-%'"); // cascades to members and invitations
-        jdbc.update("DELETE FROM users WHERE email LIKE 'plan-%@plan.test'"); // cascades to tokens and roles
+        jdbc.update("DELETE FROM users WHERE email LIKE 'plan-%@plan.test'"); // cascades to tokens, roles, profiles, addresses
         jdbc.execute("ANALYZE users, refresh_tokens, account_tokens, user_roles, organizations, organization_members, "
-                + "organization_invitations");
+                + "organization_invitations, user_profiles, user_addresses");
     }
 }

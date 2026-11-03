@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-144 questions so far.
+168 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -17,6 +17,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 2: Authorization (RBAC)](#phase-2-authorization-rbac) | 29 | [modules/RBAC.md](modules/RBAC.md) |
 | [Phase 3: User management](#phase-3-user-management) | 31 | [modules/USERS.md](modules/USERS.md) |
 | [Phase 4: Organisations (marketplace sellers)](#phase-4-organisations-marketplace-sellers) | 30 | [modules/ORGANIZATIONS.md](modules/ORGANIZATIONS.md) |
+| [Phase 5: Profile](#phase-5-profile) | 24 | [modules/PROFILE.md](modules/PROFILE.md) |
 
 ## Phase 0: Setup
 
@@ -259,4 +260,44 @@ Design: [modules/ORGANIZATIONS.md](modules/ORGANIZATIONS.md).
 3. The guard checks status but does not lock the organisation. When is that acceptable, and what must Phase 6 add for sales?
 4. How do you review a multi-tenant module for isolation? Which classes of bugs does `TenantIsolationIT` catch, and which not?
 5. Why is a journey test with a log audit worth having on top of focused tests?
+
+## Phase 5: Profile
+
+Design: [modules/PROFILE.md](modules/PROFILE.md).
+
+### Step 5.1: Personal profile
+
+1. Why keep names and phone numbers out of the `users` table and the auth module?
+2. An access token outlives an erasure by up to 15 minutes. How could a profile save leave personal data behind an erased account, and how does a FOR SHARE lock on the account row prevent it?
+3. Why FOR SHARE and not FOR UPDATE for that lock? What would FOR UPDATE cost?
+4. How do you apply optimistic locking to a row that may not exist yet?
+5. Why does `/api/v1/profile` have no ID in the path? Which class of vulnerability does that remove?
+6. Why store phone numbers in E.164, and why must an unverified number never be used for sign-in or recovery?
+7. Why an IANA time zone instead of a UTC offset?
+8. Which Unicode characters would you reject in a name, and why not restrict names to letters?
+
+### Step 5.2: Address book
+
+1. Why must an order copy the address instead of referencing the address book?
+2. How does a partial unique index enforce "at most one default per account", and why must the old default be cleared before the new one is written?
+3. Two requests arrive at 19 of 20 addresses. Why can a FOR SHARE lock on the account not stop both from inserting, and what does the advisory lock add?
+4. Why look addresses up by ID and owner together instead of loading by ID and comparing the owner afterwards?
+5. Why does deleting the default address not promote another one?
+6. What does country-specific validation prove, and what does it not? When would you add an address verification service?
+7. Why does `PUT` replace the default flags too, and what would PATCH semantics cost here?
+
+### Step 5.3: Support access and data export
+
+1. Why is reading personal data a separate permission from managing accounts? Which team would hold one but not the other?
+2. Why log every support view, and what must the log line contain and not contain?
+3. Why answer 404 for both unknown and erased accounts?
+4. Which module should assemble a data export that spans four modules, given the dependency direction? What would break if org assembled it?
+5. What belongs in a GDPR export, and why leave out password hashes and moderation notes?
+6. Why `Cache-Control: no-store` and a rate limit on the export?
+
+### Step 5.4: Review and journey test
+
+1. How do you review a module for privacy rather than only for access control? Which questions did this review ask?
+2. Why is "the person can always get all their data, and erasure always wins" an invariant worth a journey test?
+3. Which accepted risks of Phase 5 should later phases close, and which phase owns each?
 

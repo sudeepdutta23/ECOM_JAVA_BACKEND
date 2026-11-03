@@ -5,6 +5,7 @@ import com.ecommerce.backend.auth.event.AccountErased;
 import com.ecommerce.backend.auth.repository.AccountTokenRepository;
 import com.ecommerce.backend.auth.repository.RefreshTokenRepository;
 import com.ecommerce.backend.org.service.MemberDeparture;
+import com.ecommerce.backend.profile.service.ProfileEraser;
 import com.ecommerce.backend.rbac.service.RoleAssignmentService;
 import java.time.Instant;
 import java.util.UUID;
@@ -29,20 +30,23 @@ class AccountEraser {
     private final AccountTokenRepository accountTokens;
     private final RoleAssignmentService roleAssignments;
     private final MemberDeparture organizations;
+    private final ProfileEraser profiles;
     private final ApplicationEventPublisher events;
 
     AccountEraser(RefreshTokenRepository refreshTokens, AccountTokenRepository accountTokens,
-                  RoleAssignmentService roleAssignments, MemberDeparture organizations,
+                  RoleAssignmentService roleAssignments, MemberDeparture organizations, ProfileEraser profiles,
                   ApplicationEventPublisher events) {
         this.refreshTokens = refreshTokens;
         this.accountTokens = accountTokens;
         this.roleAssignments = roleAssignments;
         this.organizations = organizations;
+        this.profiles = profiles;
         this.events = events;
     }
 
     /** What was removed, for the log line. */
-    record Erasure(int sessionTokens, int emailLinks, int roles, MemberDeparture.Removed organizationData) {
+    record Erasure(int sessionTokens, int emailLinks, int roles, MemberDeparture.Removed organizationData,
+                   ProfileEraser.Removed profileData) {
     }
 
     /**
@@ -62,8 +66,9 @@ class AccountEraser {
         int emailLinks = accountTokens.deleteAllByUserId(userId);
         int roles = roleAssignments.removeAllRoles(userId);
         MemberDeparture.Removed organizationData = organizations.forget(userId, email);
+        ProfileEraser.Removed profileData = profiles.forget(userId); // after the user row: a waiting save then sees ERASED
 
         events.publishEvent(new AccountErased(email));
-        return new Erasure(sessionTokens, emailLinks, roles, organizationData);
+        return new Erasure(sessionTokens, emailLinks, roles, organizationData, profileData);
     }
 }

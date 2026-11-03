@@ -58,7 +58,10 @@ public enum ErrorCode {
     ORG_ALREADY_MEMBER(HttpStatus.CONFLICT, "Already a member"),
     ORG_INVITATION_LIMIT(HttpStatus.CONFLICT, "Too many pending invitations"),
     ORG_INVALID_INVITATION(HttpStatus.BAD_REQUEST, "Invalid or expired invitation"),
-    ORG_CONFLICT_OF_INTEREST(HttpStatus.FORBIDDEN, "Not allowed on an organisation you belong to");
+    ORG_CONFLICT_OF_INTEREST(HttpStatus.FORBIDDEN, "Not allowed on an organisation you belong to"),
+
+    // ----- Profile (Phase 5) -----
+    PROFILE_ADDRESS_LIMIT(HttpStatus.CONFLICT, "Address book is full");
 
     private final HttpStatus status;
     private final String title;

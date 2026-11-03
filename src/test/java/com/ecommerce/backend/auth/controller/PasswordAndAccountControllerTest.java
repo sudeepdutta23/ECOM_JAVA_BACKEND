@@ -22,6 +22,10 @@ import com.ecommerce.backend.auth.service.AccountService;
 import com.ecommerce.backend.auth.service.IssuedRefreshToken;
 import com.ecommerce.backend.auth.service.LoginResult;
 import com.ecommerce.backend.auth.service.PasswordService;
+import com.ecommerce.backend.auth.service.PersonalDataExporter;
+import com.ecommerce.backend.auth.dto.PersonalDataExport;
+import com.ecommerce.backend.profile.PersonalProfile;
+import java.util.List;
 import com.ecommerce.backend.common.security.SecurityConfig;
 import com.ecommerce.backend.rbac.service.AuthorizationService;
 import com.ecommerce.backend.rbac.service.UserAuthorities;
@@ -57,6 +61,9 @@ class PasswordAndAccountControllerTest {
 
     @MockitoBean
     private AuthorizationService authorization;
+
+    @MockitoBean
+    private PersonalDataExporter exporter;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
@@ -206,5 +213,27 @@ class PasswordAndAccountControllerTest {
                 .andExpect(jsonPath("$.errors[0].field").value("password"));
 
         verifyNoInteractions(accounts);
+    }
+
+    @Test
+    void exportIsADownloadThatNoCacheKeepsAndMarksThisSession() throws Exception {
+        when(exporter.export(USER_ID, SESSION)).thenReturn(new PersonalDataExport(Instant.now(),
+                new PersonalDataExport.Account(USER_ID, "alice@example.com", UserStatus.ACTIVE, null, null, Instant.now()),
+                List.of("CUSTOMER"), List.of(), List.of(),
+                new PersonalProfile(null, null, null, null, null, null, List.of())));
+
+        mockMvc.perform(get("/api/v1/auth/me/export").with(jwt().jwt(j -> j.subject(USER_ID.toString())
+                        .claim("sid", SESSION.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"my-data.json\""))
+                .andExpect(header().string("Cache-Control", containsString("no-store")))
+                .andExpect(jsonPath("$.data.account.email").value("alice@example.com"))
+                .andExpect(jsonPath("$.data.account.passwordHash").doesNotExist());
+    }
+
+    @Test
+    void exportNeedsASignedInCaller() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/me/export")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(exporter);
     }
 }

@@ -7,6 +7,7 @@ import com.ecommerce.backend.common.exception.ResourceNotFoundException;
 import com.ecommerce.backend.common.response.PageResponse;
 import com.ecommerce.backend.org.dto.MyOrganizationResponse;
 import com.ecommerce.backend.org.dto.OrganizationResponse;
+import com.ecommerce.backend.org.MembershipSummary;
 import com.ecommerce.backend.org.OrgMembership;
 import com.ecommerce.backend.org.OrgPermission;
 import com.ecommerce.backend.org.OrgRole;
@@ -19,11 +20,13 @@ import com.ecommerce.backend.org.service.OrganizationGuard.Intent;
 import com.ecommerce.backend.rbac.service.UserDirectory;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -108,6 +111,18 @@ public class OrganizationService {
     @Transactional(readOnly = true)
     public PageResponse<MyOrganizationResponse> mine(UUID userId, int page, int size) {
         return PageResponse.from(members.findMemberships(userId, PageRequest.of(page, size)), MyOrganizationResponse::from);
+    }
+
+    /**
+     * Every membership of the person, newest organisation first, for their data export. Unpaged:
+     * one person belongs to few organisations, and an export must be complete.
+     */
+    @Transactional(readOnly = true)
+    public List<MembershipSummary> allMemberships(UUID userId) {
+        return members.findMemberships(userId, Pageable.unpaged()).stream()
+                .map(view -> new MembershipSummary(view.organizationId(), view.slug(), view.name(), view.status(),
+                        view.role(), view.joinedAt()))
+                .toList();
     }
 
     @Transactional(readOnly = true)

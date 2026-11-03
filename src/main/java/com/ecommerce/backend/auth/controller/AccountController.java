@@ -2,9 +2,11 @@ package com.ecommerce.backend.auth.controller;
 
 import com.ecommerce.backend.auth.dto.MeResponse;
 import com.ecommerce.backend.auth.dto.PasswordConfirmationRequest;
+import com.ecommerce.backend.auth.dto.PersonalDataExport;
 import com.ecommerce.backend.auth.security.CurrentUser;
 import com.ecommerce.backend.auth.security.RefreshTokenCookie;
 import com.ecommerce.backend.auth.service.AccountService;
+import com.ecommerce.backend.auth.service.PersonalDataExporter;
 import com.ecommerce.backend.common.config.OpenApiConfig;
 import com.ecommerce.backend.common.response.ApiResponse;
 import com.ecommerce.backend.rbac.service.AuthorizationService;
@@ -33,12 +35,14 @@ public class AccountController {
 
     private final AccountService accounts;
     private final AuthorizationService authorization;
+    private final PersonalDataExporter exporter;
     private final RefreshTokenCookie refreshCookie;
 
     public AccountController(AccountService accounts, AuthorizationService authorization,
-                             RefreshTokenCookie refreshCookie) {
+                             PersonalDataExporter exporter, RefreshTokenCookie refreshCookie) {
         this.accounts = accounts;
         this.authorization = authorization;
+        this.exporter = exporter;
         this.refreshCookie = refreshCookie;
     }
 
@@ -52,6 +56,19 @@ public class AccountController {
         UUID userId = CurrentUser.id(jwt);
         return ApiResponse.success("Current user",
                 MeResponse.from(accounts.currentUser(userId), authorization.authoritiesOf(userId)));
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Download my data",
+            description = "Everything the platform holds about you, from every module, as one JSON document: "
+                    + "account, roles, signed-in devices, organisations, profile and addresses. No password or "
+                    + "token hashes. Rate limited.")
+    public ResponseEntity<ApiResponse<PersonalDataExport>> export(@AuthenticationPrincipal Jwt jwt) {
+        PersonalDataExport export = exporter.export(CurrentUser.id(jwt), CurrentUser.sessionId(jwt));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"my-data.json\"")
+                .header(HttpHeaders.CACHE_CONTROL, "no-store") // personal data: never in a shared cache
+                .body(ApiResponse.success("Your data", export));
     }
 
     @PostMapping(path = "/deactivate", consumes = MediaType.APPLICATION_JSON_VALUE)

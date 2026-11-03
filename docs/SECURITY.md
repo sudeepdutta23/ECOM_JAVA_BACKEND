@@ -131,6 +131,12 @@ Set `app.security.password-hashing.max-concurrent` and `app.auth.failed-login-mi
 | No HTTPS (terminated at the load balancer in production) | 16 to 18 |
 | No security headers (HSTS, CSP...) | 1 via Spring Security |
 
+## Personal data (Phase 5)
+
+- Staff read profiles and addresses only with `profile:read`, separate from `user:read`; every view is logged with the viewer's ID.
+- `GET /api/v1/auth/me/export` gives a person all their data, without password or token hashes, as an uncached download, rate limited.
+- Every write of personal data first locks the account row FOR SHARE, so it cannot outlive an erasure ([modules/PROFILE.md](modules/PROFILE.md)).
+
 ## Never log
 
-Passwords, password hashes, JWTs, refresh tokens, reset tokens, secrets, full card or ID numbers.
+Passwords, password hashes, JWTs, refresh tokens, reset tokens, secrets, full card or ID numbers. Personal data: emails, names, phone numbers, addresses (log the user ID instead; entities and DTOs that hold such data override `toString`).

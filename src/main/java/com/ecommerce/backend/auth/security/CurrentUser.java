@@ -1,5 +1,6 @@
 package com.ecommerce.backend.auth.security;
 
+import com.ecommerce.backend.common.security.TokenClaims;
 import java.util.UUID;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -16,5 +17,11 @@ public final class CurrentUser {
 
     public static UUID id(Jwt jwt) {
         return UUID.fromString(jwt.getSubject());
+    }
+
+    /** The session (login) this token belongs to; null for tokens issued before the claim existed. */
+    public static UUID sessionId(Jwt jwt) {
+        String sid = jwt.getClaimAsString(TokenClaims.SESSION_ID);
+        return sid == null ? null : UUID.fromString(sid);
     }
 }

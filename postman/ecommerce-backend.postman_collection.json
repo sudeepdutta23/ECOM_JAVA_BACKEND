@@ -370,6 +370,26 @@
           ]
         },
         {
+          "name": "Download my data",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/auth/me/export",
+            "description": "Everything the platform holds about you: account, roles, devices, organisations, profile, addresses. A download (Content-Disposition: attachment), never cached. 5 per 15 minutes per IP."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('no secrets', () => pm.expect(pm.response.text()).to.not.include('argon2'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Deactivate my account",
           "request": {
             "method": "POST",
@@ -443,6 +463,182 @@
             },
             "url": "{{baseUrl}}/api/v1/auth/me/erase",
             "description": "Bearer token required. Anonymises the account for good: email, password, sessions, email links and roles are removed. The email can be registered again. Use a throwaway account."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "description": "The signed-in person's own profile and address book. No account ID in any URL: the account comes from the token, and another person's address ID answers 404. Erasure deletes both.",
+      "item": [
+        {
+          "name": "Get profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/profile",
+            "description": "Empty and without a version until the first save. Saves {{profileVersion}} (null before the first save)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const version = pm.response.json().data.version;",
+                  "pm.environment.set('profileVersion', version === undefined ? 'null' : version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"givenName\": \"Ada\",\n  \"familyName\": \"Lovelace\",\n  \"phoneNumber\": \"+49 30 12345678\",\n  \"preferredLocale\": \"en-GB\",\n  \"timeZone\": \"Europe/Berlin\",\n  \"version\": {{profileVersion}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/profile",
+            "description": "Replaces every field; one left out is cleared. Run Get profile first: the version must match (null for the first save), otherwise 409 CONCURRENT_MODIFICATION. Saves the new {{profileVersion}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('profileVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List addresses",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/profile/addresses",
+            "description": "Newest first, at most 20, no paging."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create address",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Home\",\n  \"recipientName\": \"Ada Lovelace\",\n  \"line1\": \"Friedrichstraße 123\",\n  \"city\": \"Berlin\",\n  \"postalCode\": \"10117\",\n  \"countryCode\": \"DE\",\n  \"phoneNumber\": \"+49 30 12345678\",\n  \"defaultShipping\": true,\n  \"defaultBilling\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/profile/addresses",
+            "description": "201 with Location. The first address is the default for both. Country rules: postal code format where known, region in US, CA, AU, IN. 409 PROFILE_ADDRESS_LIMIT after 20. Saves {{addressId}} and {{addressVersion}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('addressId', pm.response.json().data.id);",
+                  "pm.environment.set('addressVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get address",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/profile/addresses/{{addressId}}",
+            "description": "404 for an address that is not yours. Saves {{addressVersion}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('addressVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Replace address",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Home\",\n  \"recipientName\": \"Ada Lovelace\",\n  \"line1\": \"Friedrichstraße 123\",\n  \"city\": \"Berlin\",\n  \"postalCode\": \"10117\",\n  \"countryCode\": \"DE\",\n  \"phoneNumber\": \"+49 30 12345678\",\n  \"defaultShipping\": true,\n  \"defaultBilling\": true,\n  \"version\": {{addressVersion}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/profile/addresses/{{addressId}}",
+            "description": "Replaces everything, default flags included (left out means unset). Send the version you read; 409 CONCURRENT_MODIFICATION otherwise."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('addressVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete address",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/profile/addresses/{{addressId}}",
+            "description": "204. A deleted default leaves no default of that kind."
           },
           "event": [
             {
@@ -1027,6 +1223,25 @@
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}",
             "description": "Requires user:read. Status history, lockout, active sessions, roles and permissions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get user profile (support)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/profile",
+            "description": "Needs profile:read (user:read is not enough). Profile and addresses; every view is logged with your ID. 404 for unknown and erased accounts."
           },
           "event": [
             {

@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /** The auth module's answer to the rbac module's {@link UserDirectory} questions. */
@@ -33,6 +34,12 @@ class AuthUserDirectory implements UserDirectory {
     @Transactional(readOnly = true)
     public boolean isActive(UUID userId) {
         return users.countByIdInAndStatus(List.of(userId), UserStatus.ACTIVE) == 1;
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean lockIfActive(UUID userId) {
+        return users.lockStatus(userId).map(UserStatus.ACTIVE.name()::equals).orElse(false);
     }
 
     @Override

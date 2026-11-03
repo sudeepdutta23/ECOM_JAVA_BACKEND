@@ -126,6 +126,11 @@ app:
                 /api/v1/auth/me/erase, /api/v1/organizations/invitations/accept]
         capacity: 30
         period: 1m
+      - name: data-export                 # reads every module for one person: cheap to ask, costly to serve
+        method: GET
+        paths: [/api/v1/auth/me/export]
+        capacity: 5
+        period: 15m
 
   auth:
     frontend-base-url: ${APP_FRONTEND_BASE_URL:http://localhost:3000}
@@ -144,6 +149,10 @@ app:
     max-pending-invitations: 50
     invitation-ttl: 7d
     frontend-base-url: ${app.auth.frontend-base-url}
+
+  profile:
+    # Saved addresses per account: enough for any household; bounds the list (no paging).
+    max-addresses: 20
 
   rbac:
     # First administrator: this account gets ADMIN at startup while no active admin exists.

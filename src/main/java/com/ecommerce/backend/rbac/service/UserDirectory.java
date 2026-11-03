@@ -13,7 +13,8 @@ import java.util.UUID;
  * last-admin rule needs "which admins are still active?". rbac declares the question; auth answers
  * it. This is dependency inversion: the arrow in the code stays {@code auth -> rbac}.
  *
- * <p>The org module asks the same questions and reuses this port (docs/modules/ORGANIZATIONS.md).
+ * <p>The org and profile modules ask the same questions and reuse this port
+ * (docs/modules/ORGANIZATIONS.md, docs/modules/PROFILE.md).
  */
 public interface UserDirectory {
 
@@ -22,6 +23,14 @@ public interface UserDirectory {
 
     /** Whether this account can currently sign in. */
     boolean isActive(UUID userId);
+
+    /**
+     * Whether this account can currently sign in, and if it exists, a FOR SHARE lock on it until
+     * the caller's transaction ends. Must run inside a transaction. Use it before writing personal
+     * data about the user: an erasure running at the same time then either waits for that write
+     * (and removes it), or committed first (and this returns false).
+     */
+    boolean lockIfActive(UUID userId);
 
     /** How many of the given users can currently sign in. */
     long countActive(Collection<UUID> userIds);

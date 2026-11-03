@@ -51,7 +51,7 @@ com.ecommerce.backend
   rbac/              Phase 2: roles, permissions, method security; see docs/modules/RBAC.md
   (user administration lives in auth/, which owns the User entity: see docs/modules/USERS.md)
   org/               Phase 4: marketplace sellers, members, organisation roles; see docs/modules/ORGANIZATIONS.md
-  profile/           Phase 5: names, phone, addresses; refers to users by ID
+  profile/           Phase 5: names, phone, language, time zone, address book; see docs/modules/PROFILE.md
   ...
 ```
 
@@ -59,16 +59,19 @@ com.ecommerce.backend
 
 ```
 auth ──> org ──> rbac ──> common
-  └───────────────┘
+  │                ^
+  ├──> profile ────┘
+  └────────────────┘
 ```
 
-(Since step 4.5 auth calls `org.service.MemberDeparture` before an account is deactivated or erased, like `rbac.requireCanLeave`.)
+(Since step 4.5 auth calls `org.service.MemberDeparture` before an account is deactivated or erased, like `rbac.requireCanLeave`. Since step 5.1 it calls `profile.service.ProfileEraser` during erasure, and since 5.3 `PersonalDataExporter` collects the data export from org and profile through their public APIs.)
 
 - `auth` calls `rbac.service.AuthorizationService` to read a user's authorities and to grant the default role.
 - `rbac` never imports `auth`. It knows users only by UUID; the database foreign key keeps integrity.
 - When rbac needs facts about users (exists? active?), it declares the `rbac.service.UserDirectory` interface and auth implements it. The dependency still points from auth to rbac.
 - Before an account stops being active, auth calls `rbac.service.RoleAssignmentService.requireCanLeave`, so the last administrator cannot disappear.
 - `org` reuses rbac's `UserDirectory` port for facts about users and never imports `auth`. Organisation authorization is read from memberships per request, not from the token ([ADR-012](adr/ADR-012-tenancy-model.md)).
+- `profile` reuses the same port, including `lockIfActive`, which locks the account row while personal data is written so that an erasure cannot be overtaken ([modules/PROFILE.md](modules/PROFILE.md)). It imports neither `auth` nor `org`, and `org` does not import it.
 
 ### Request pipeline
 
@@ -89,7 +92,7 @@ Inside a module, sub-packages are created only when needed: `controller`, `servi
 
 Rules 3 and 5 are what make later extraction into microservices possible. `ModuleBoundariesTest` (ArchUnit, since Phase 4) enforces them on every build:
 
-- no cycles between modules; `common` depends on no module; `rbac` knows neither `auth` nor `org`; `org` does not know `auth`;
+- no cycles between modules; `common` depends on no module; `rbac` knows neither `auth`, `org` nor `profile`; `org` does not know `auth` or `profile`; `profile` does not know `auth` or `org`;
 - a module's `entity`, `repository`, `dto` and `controller` packages are private to it: other modules use only its root package (public types such as `rbac.Permission`, `org.OrgPermission`) and its `service` package;
 - controllers never use repositories; repositories never call services or controllers.
 

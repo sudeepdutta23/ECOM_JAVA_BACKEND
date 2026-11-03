@@ -27,6 +27,15 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
 
     boolean existsByIdAndStatusNot(UUID id, UserStatus status);
 
+    /**
+     * The account's status, with a FOR SHARE lock on its row until commit. Status changes (suspend,
+     * deactivate, erase) update the row, so they wait for this lock, and READ COMMITTED returns
+     * their result if they committed first. Several readers can hold the lock at once. A scalar
+     * query, so no entity enters the persistence context with possibly stale state.
+     */
+    @Query(value = "SELECT status FROM users WHERE id = :id FOR SHARE", nativeQuery = true)
+    Optional<String> lockStatus(@Param("id") UUID id);
+
     /** DTO projection: a constructor expression selects only the listed columns. */
     @Query("""
             select new com.ecommerce.backend.auth.repository.UserSummary(

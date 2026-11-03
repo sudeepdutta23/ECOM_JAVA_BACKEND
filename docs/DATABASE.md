@@ -160,6 +160,19 @@ An erased account keeps its row (later tables reference `users.id`) but no perso
 | `idx_organization_members_user_id` | "My organisations" |
 | `idx_organizations_created_by`, `idx_organizations_status_changed_by`, `idx_organization_members_added_by` | `ON DELETE SET NULL` without full scans |
 
+## Phase 5 changes (V10, V11, profiles and addresses)
+
+`user_profiles`: one optional row per account, keyed by `user_id` (FK to `users`, ON DELETE CASCADE). Names, an E.164 phone number, a language tag and an IANA time zone, each NULL when not given and CHECKed for format. Every access is by primary key, so no secondary index. Erasure deletes the row in its own transaction.
+
+`user_addresses` (V11): the address book, UUID v7 key, owner FK with ON DELETE CASCADE, format CHECKs on every field. Orders (Phase 6) copy an address instead of referencing it.
+
+| Index | Serves |
+|---|---|
+| `idx_user_addresses_user_id (user_id, id)` | My addresses newest first, the 20-address limit, erasure |
+| `uk_user_addresses_default_shipping`, `uk_user_addresses_default_billing` | Partial unique `(user_id) WHERE default_*`: one default of each kind per account |
+
+Details: [modules/PROFILE.md](modules/PROFILE.md#8-data-model-v10-v11).
+
 ## Migration history
 
 | Version | Description |
@@ -173,3 +186,6 @@ An erased account keeps its row (later tables reference `users.id`) but no perso
 | V7 | organizations, organization_members; `org:read`, `org:manage` for ADMIN |
 | V8 | organization_invitations: hashed single-use links, one open invitation per address |
 | V9 | Index on invitation email, for erasure |
+| V10 | user_profiles: names, phone (E.164), language, time zone |
+| V11 | user_addresses: address book, one default shipping and one default billing address per account |
+| V12 | `profile:read` for ADMIN (support access to personal data) |

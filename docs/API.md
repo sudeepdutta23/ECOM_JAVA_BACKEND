@@ -114,7 +114,16 @@ Send `X-Request-Id` (8 to 64 characters, letters, digits, `.`, `_`, `-`) to corr
 | GET | `/api/v1/auth/me/sessions` | Bearer | My signed-in devices; `current` marks this one |
 | DELETE | `/api/v1/auth/me/sessions/{sessionId}` | Bearer | Sign out one device; 204; 404 if not mine |
 | POST | `/api/v1/auth/me/deactivate` | Bearer | Needs current password; ends all sessions; 204; 409 `RBAC_LAST_ADMIN` for the last active admin |
-| POST | `/api/v1/auth/me/erase` | Bearer | Irreversible. Needs current password; anonymises the account, deletes sessions, links and roles; 204; 409 `RBAC_LAST_ADMIN` |
+| POST | `/api/v1/auth/me/erase` | Bearer | Irreversible. Needs current password; anonymises the account, deletes sessions, links, roles, memberships, the profile and the address book; 204; 409 `RBAC_LAST_ADMIN`, `ORG_LAST_OWNER` |
+| GET | `/api/v1/profile` | Bearer | My profile; absent fields were never given; no `version` before the first save |
+| PUT | `/api/v1/profile` | Bearer, active account | Replace `{givenName, familyName, phoneNumber, preferredLocale, timeZone, version}`; omitted fields are cleared; no `version` on the first save; 409 `CONCURRENT_MODIFICATION` |
+| GET | `/api/v1/auth/me/export` | Bearer | Download my data: account, roles, devices, organisations, profile, addresses; attachment, `no-store`; 5 per 15 min |
+| GET | `/api/v1/admin/users/{userId}/profile` | Bearer + `profile:read` | A customer's profile and addresses (support, read only); every view logged; 404 for unknown and erased |
+| GET | `/api/v1/profile/addresses` | Bearer | My addresses, newest first (at most 20, no paging) |
+| POST | `/api/v1/profile/addresses` | Bearer, active account | Save an address; the first becomes the default for both; 201 + Location; 400 country rules; 409 `PROFILE_ADDRESS_LIMIT` |
+| GET | `/api/v1/profile/addresses/{addressId}` | Bearer, owner | One address; 404 if not mine |
+| PUT | `/api/v1/profile/addresses/{addressId}` | Bearer, owner | Replace, default flags included; `version` required; 409 `CONCURRENT_MODIFICATION` |
+| DELETE | `/api/v1/profile/addresses/{addressId}` | Bearer, owner | 204; a deleted default leaves no default |
 | GET | `/api/v1/admin/permissions` | Bearer + `role:read` | Permission catalogue |
 | GET | `/api/v1/admin/roles` | Bearer + `role:read` | Roles with permissions |
 | GET | `/api/v1/admin/roles/{roleId}` | Bearer + `role:read` | One role |

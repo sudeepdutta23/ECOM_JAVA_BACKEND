@@ -13,7 +13,8 @@ import com.tngtech.archunit.lang.ArchRule;
  * instead of waiting for a reviewer. Runs on the compiled production classes in a fraction of a
  * second, without Spring.
  *
- * <p>Module dependencies point one way: {@code auth -> org -> rbac -> common}, {@code auth -> rbac}.
+ * <p>Module dependencies point one way: {@code auth -> org -> rbac -> common}, {@code auth -> rbac},
+ * {@code auth -> profile -> rbac}.
  * A module talks to another only through its root package (public types such as
  * {@code rbac.Permission}, {@code org.OrgPermission}) and its {@code service} package. Its entities
  * and repositories are private: that is what keeps a seller's data behind {@code OrganizationGuard},
@@ -30,15 +31,24 @@ class ModuleBoundariesTest {
     @ArchTest
     static final ArchRule commonDependsOnNoModule = noClasses().that().resideInAPackage(BASE + "common..")
             .should().dependOnClassesThat().resideInAnyPackage(BASE + "auth..", BASE + "rbac..", BASE + "org..",
-                    BASE + "system..");
+                    BASE + "profile..", BASE + "system..");
 
     @ArchTest
     static final ArchRule rbacKnowsNoOtherModule = noClasses().that().resideInAPackage(BASE + "rbac..")
-            .should().dependOnClassesThat().resideInAnyPackage(BASE + "auth..", BASE + "org..");
+            .should().dependOnClassesThat().resideInAnyPackage(BASE + "auth..", BASE + "org..", BASE + "profile..");
 
     @ArchTest
     static final ArchRule orgDoesNotKnowAuth = noClasses().that().resideInAPackage(BASE + "org..")
             .should().dependOnClassesThat().resideInAPackage(BASE + "auth..");
+
+    /** Profiles and sellers are independent: neither needs the other, and auth calls both. */
+    @ArchTest
+    static final ArchRule profileKnowsNeitherAuthNorOrg = noClasses().that().resideInAPackage(BASE + "profile..")
+            .should().dependOnClassesThat().resideInAnyPackage(BASE + "auth..", BASE + "org..");
+
+    @ArchTest
+    static final ArchRule orgDoesNotKnowProfile = noClasses().that().resideInAPackage(BASE + "org..")
+            .should().dependOnClassesThat().resideInAPackage(BASE + "profile..");
 
     @ArchTest
     static final ArchRule authInternalsArePrivate = internalsOf("auth");
@@ -48,6 +58,9 @@ class ModuleBoundariesTest {
 
     @ArchTest
     static final ArchRule orgInternalsArePrivate = internalsOf("org");
+
+    @ArchTest
+    static final ArchRule profileInternalsArePrivate = internalsOf("profile");
 
     @ArchTest
     static final ArchRule controllersNeverTouchRepositories = noClasses().that().resideInAPackage("..controller..")

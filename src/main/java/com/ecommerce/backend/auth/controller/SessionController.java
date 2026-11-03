@@ -5,7 +5,6 @@ import com.ecommerce.backend.auth.security.CurrentUser;
 import com.ecommerce.backend.auth.service.SessionService;
 import com.ecommerce.backend.common.config.OpenApiConfig;
 import com.ecommerce.backend.common.response.ApiResponse;
-import com.ecommerce.backend.common.security.TokenClaims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,7 +39,7 @@ public class SessionController {
     @GetMapping
     @Operation(summary = "List my signed-in devices", description = "Newest activity first. `current` marks this device.")
     public ApiResponse<List<SessionResponse>> list(@AuthenticationPrincipal Jwt jwt) {
-        return ApiResponse.success("Sessions", sessions.list(CurrentUser.id(jwt), currentSession(jwt)));
+        return ApiResponse.success("Sessions", sessions.list(CurrentUser.id(jwt), CurrentUser.sessionId(jwt)));
     }
 
     @DeleteMapping("/{sessionId}")
@@ -53,10 +52,5 @@ public class SessionController {
     public ResponseEntity<Void> end(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID sessionId) {
         sessions.end(CurrentUser.id(jwt), sessionId);
         return ResponseEntity.noContent().build();
-    }
-
-    private static UUID currentSession(Jwt jwt) {
-        String sid = jwt.getClaimAsString(TokenClaims.SESSION_ID);
-        return sid == null ? null : UUID.fromString(sid);
     }
 }

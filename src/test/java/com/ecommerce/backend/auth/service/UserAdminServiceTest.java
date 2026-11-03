@@ -23,6 +23,7 @@ import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
 import com.ecommerce.backend.org.service.MemberDeparture;
+import com.ecommerce.backend.profile.service.ProfileEraser;
 import com.ecommerce.backend.rbac.service.AuthorizationService;
 import com.ecommerce.backend.rbac.service.RoleAssignmentService;
 import com.ecommerce.backend.rbac.service.UserAuthorities;
@@ -50,7 +51,9 @@ class UserAdminServiceTest {
     private final AccountTokenRepository accountTokens = mock(AccountTokenRepository.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final MemberDeparture departure = mock(MemberDeparture.class);
-    private final AccountEraser eraser = new AccountEraser(refreshTokens, accountTokens, roleAssignments, departure, events);
+    private final ProfileEraser profiles = mock(ProfileEraser.class);
+    private final AccountEraser eraser = new AccountEraser(refreshTokens, accountTokens, roleAssignments, departure,
+            profiles, events);
     private final UserAdminService service = new UserAdminService(users, refreshTokens, authorization, sessions,
             roleAssignments, eraser, Clock.fixed(NOW, ZoneOffset.UTC));
 
