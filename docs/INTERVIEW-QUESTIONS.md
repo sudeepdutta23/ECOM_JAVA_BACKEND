@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-213 questions so far.
+221 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -21,6 +21,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 6: Core business (catalogue and orders)](#phase-6-core-business-catalogue-and-orders) | 29 | [modules/CATALOG.md](modules/CATALOG.md) |
 | [Phase 7: Notifications](#phase-7-notifications) | 8 | [modules/NOTIFICATIONS.md](modules/NOTIFICATIONS.md) |
 | [Phase 8: Files](#phase-8-files) | 8 | [modules/FILES.md](modules/FILES.md) |
+| [Phase 9: Audit](#phase-9-audit) | 8 | [modules/AUDIT.md](modules/AUDIT.md) |
 
 ## Phase 0: Setup
 
@@ -381,4 +382,19 @@ Design: [modules/FILES.md](modules/FILES.md).
 6. Why serve images with the stored content type and `nosniff`, and why must binary responses carry no forced charset?
 7. Why does an oversized upload need `max-swallow-size` to produce a 413 instead of a connection reset?
 8. What changes when the application runs on several servers, and why does the `FileStorage` port make that change small?
+
+## Phase 9: Audit
+
+Design: [modules/AUDIT.md](modules/AUDIT.md).
+
+### Steps 9.1 and 9.2: Audit log and review
+
+1. What is the difference between an application log and an audit log? Who reads each, and for how long is each kept?
+2. Why write the audit entry in the action's own transaction? What goes wrong if it is written after commit, or before?
+3. Why does the transaction advice have to be the outermost one for that to work, and how is that configured?
+4. How does a database trigger make a table append-only, and what does it protect against that application code cannot?
+5. Why take the actor from the access token instead of a parameter, and why keep IDs instead of names in the log?
+6. Why is keyset paging a better fit than page numbers for an audit log?
+7. Why an annotation and an aspect instead of calling an audit service from each method? What does it cost?
+8. Should an erasure request delete audit entries? Which data in them is personal, and what justifies keeping it?
 

@@ -153,6 +153,12 @@ Set `app.security.password-hashing.max-concurrent` and `app.auth.failed-login-mi
 - Storage keys are made by the server; the key pattern and a root check stop path traversal twice.
 - Served bytes carry the stored content type and `X-Content-Type-Options: nosniff`. Details: [modules/FILES.md](modules/FILES.md).
 
+## Audit log (Phase 9)
+
+- Administrative actions (accounts, roles, sellers, members, categories, support views of personal data) are recorded by `@Audited` in the action's own transaction: committed together or not at all.
+- The actor comes from the access token; entries carry IDs, the request ID and the client IP, never reasons or personal data.
+- `audit_events` is append-only in the database itself (trigger), so a compromised application account cannot rewrite history. Reading needs `audit:read`.
+
 ## Never log
 
 Passwords, password hashes, JWTs, refresh tokens, reset tokens, secrets, full card or ID numbers. Personal data: emails, names, phone numbers, addresses (log the user ID instead; entities and DTOs that hold such data override `toString`).

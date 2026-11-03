@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Proves that every hot auth, rbac, user-admin, org, profile, catalogue, order, notification and file query uses the index designed for it.
+ * Proves that every hot auth, rbac, user-admin, org, profile, catalogue, order, notification, file and audit query uses the index designed for it.
  *
  * <p>Test tables hold only a few rows, and for tiny tables PostgreSQL correctly prefers a
  * sequential scan. {@code SET LOCAL enable_seqscan = off} (scoped to this transaction only)
@@ -117,7 +117,12 @@ class QueryPlanIT extends AbstractIntegrationTest {
             "notifications: inbox, newest   | SELECT id FROM notifications WHERE user_id = " + ID + " ORDER BY id DESC LIMIT 20 | idx_notifications_user_id",
             "notifications: unread badge    | SELECT count(*) FROM notifications WHERE user_id = " + ID + " AND read_at IS NULL | idx_notifications_unread or idx_notifications_user_id",
             // Phase 8: a storefront page's images in one query.
-            "images: of a page of products  | SELECT id FROM product_images WHERE product_id IN (" + ID + ") ORDER BY id | idx_product_images_product_id"
+            "images: of a page of products  | SELECT id FROM product_images WHERE product_id IN (" + ID + ") ORDER BY id | idx_product_images_product_id",
+            // Phase 9: audit investigations, newest first with a keyset cursor.
+            "audit: by target, keyset       | SELECT id FROM audit_events WHERE target_id = " + ID + " AND id < " + ID + " ORDER BY id DESC LIMIT 21 | idx_audit_events_target",
+            "audit: by actor, keyset        | SELECT id FROM audit_events WHERE actor_id = " + ID + " AND id < " + ID + " ORDER BY id DESC LIMIT 21 | idx_audit_events_actor",
+            "audit: by organisation         | SELECT id FROM audit_events WHERE organization_id = " + ID + " ORDER BY id DESC LIMIT 21 | idx_audit_events_organization",
+            "audit: everything, keyset      | SELECT id FROM audit_events WHERE id < " + ID + " ORDER BY id DESC LIMIT 21 | pk_audit_events"
     })
     void hotQueryUsesItsIndex(String name, String sql, String expectedIndex) {
         String plan = tx.execute(status -> {

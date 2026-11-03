@@ -4,6 +4,7 @@ import com.ecommerce.backend.catalog.dto.CategoryResponse;
 import com.ecommerce.backend.catalog.entity.Category;
 import com.ecommerce.backend.catalog.repository.CategoryRepository;
 import com.ecommerce.backend.catalog.repository.ProductRepository;
+import com.ecommerce.backend.common.audit.Audited;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
@@ -36,6 +37,7 @@ public class CategoryService {
     }
 
     @Transactional
+    @Audited(action = "category.create", targetType = "category", targetId = "#result.id")
     public CategoryResponse create(UUID callerId, String slug, String name) {
         if (categories.existsBySlug(slug)) {
             throw slugTaken(slug);
@@ -54,6 +56,7 @@ public class CategoryService {
     }
 
     @Transactional
+    @Audited(action = "category.rename", targetType = "category", targetId = "#categoryId")
     public CategoryResponse rename(UUID callerId, UUID categoryId, String name, long expectedVersion) {
         Category category = load(categoryId);
         if (category.getVersion() != expectedVersion) {
@@ -71,6 +74,7 @@ public class CategoryService {
      * The foreign key enforces the same, so a product assigned at the same moment fails one of the two.
      */
     @Transactional
+    @Audited(action = "category.delete", targetType = "category", targetId = "#categoryId")
     public void delete(UUID callerId, UUID categoryId) {
         Category category = load(categoryId);
         if (products.existsByCategoryId(categoryId)) {

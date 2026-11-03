@@ -49,7 +49,7 @@ users 1 ──< user_roles >── 1 roles 1 ──< role_permissions >── 1 
 | `CUSTOMER` | yes | none yet; default for every new account |
 | `ADMIN` | yes | all |
 
-Only the three permissions Phase 2 needs exist: `role:read`, `role:write`, `role:assign`. Each later phase adds its own permissions in its own migration, and grants them to `ADMIN`: V4 added `user:read` and `user:manage`, V5 `user:erase` (Phase 3), V7 `org:read` and `org:manage` (Phase 4), V12 `profile:read` (Phase 5), V13 `catalog:manage` (Phase 6).
+Only the three permissions Phase 2 needs exist: `role:read`, `role:write`, `role:assign`. Each later phase adds its own permissions in its own migration, and grants them to `ADMIN`: V4 added `user:read` and `user:manage`, V5 `user:erase` (Phase 3), V7 `org:read` and `org:manage` (Phase 4), V12 `profile:read` (Phase 5), V13 `catalog:manage` (Phase 6), V18 `audit:read` (Phase 9).
 
 V3 also **backfills**: every existing user receives `CUSTOMER`. A test replays the upgrade from V2 to prove it.
 

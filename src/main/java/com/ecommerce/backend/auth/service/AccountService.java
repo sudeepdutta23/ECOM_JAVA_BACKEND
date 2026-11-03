@@ -6,6 +6,7 @@ import com.ecommerce.backend.auth.entity.UserStatus;
 import com.ecommerce.backend.auth.event.AccountDeactivated;
 import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.auth.repository.UserSummary;
+import com.ecommerce.backend.common.audit.Audited;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.org.service.MemberDeparture;
@@ -69,6 +70,7 @@ public class AccountService {
      * (409 {@code RBAC_LAST_ADMIN}), or nobody could administer the system afterwards; so is the only
      * owner of an open organisation (409 {@code ORG_LAST_OWNER}), or nobody could manage that seller.
      */
+    @Audited(action = "account.deactivate", targetType = "user", targetId = "#userId")
     public void deactivate(UUID userId, String password) {
         Instant now = Instant.now(clock);
         User user = users.findById(userId).filter(User::isActive).orElseThrow(AccountService::accountUnavailable);
@@ -93,6 +95,7 @@ public class AccountService {
      * {@code RBAC_LAST_ADMIN}) and the only owner of an open organisation (409 {@code ORG_LAST_OWNER})
      * are refused.
      */
+    @Audited(action = "account.erase", targetType = "user", targetId = "#userId")
     public void erase(UUID userId, String password) {
         Instant now = Instant.now(clock);
         User user = users.findById(userId).filter(User::isActive).orElseThrow(AccountService::accountUnavailable);

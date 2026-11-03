@@ -8,6 +8,7 @@ import com.ecommerce.backend.auth.entity.UserStatus;
 import com.ecommerce.backend.auth.repository.RefreshTokenRepository;
 import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.auth.repository.UserSearch;
+import com.ecommerce.backend.common.audit.Audited;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
@@ -96,6 +97,7 @@ public class UserAdminService {
      * minutes; refresh is refused at once, because refresh re-checks the status.
      */
     @Transactional
+    @Audited(action = "user.suspend", targetType = "user", targetId = "#userId")
     public AdminUserDetail suspend(UUID callerId, UUID userId, String reason) {
         User user = requireManageable(callerId, userId);
         if (user.getStatus() != UserStatus.ACTIVE) {
@@ -110,6 +112,7 @@ public class UserAdminService {
 
     /** Reopens a suspended or self-deactivated account. The owner signs in again as usual. */
     @Transactional
+    @Audited(action = "user.reactivate", targetType = "user", targetId = "#userId")
     public AdminUserDetail reactivate(UUID callerId, UUID userId) {
         User user = requireManageable(callerId, userId);
         if (user.getStatus() != UserStatus.SUSPENDED && user.getStatus() != UserStatus.DEACTIVATED) {
@@ -123,6 +126,7 @@ public class UserAdminService {
 
     /** Ends a temporary lockout early, for example after support verified the owner. Idempotent. */
     @Transactional
+    @Audited(action = "user.unlock", targetType = "user", targetId = "#userId")
     public AdminUserDetail unlock(UUID callerId, UUID userId) {
         requireManageable(callerId, userId);
         users.clearLockout(userId, Instant.now(clock));
@@ -132,6 +136,7 @@ public class UserAdminService {
 
     /** Ends every session of the account, for example after a reported device theft. Idempotent. */
     @Transactional
+    @Audited(action = "user.sign-out", targetType = "user", targetId = "#userId")
     public AdminUserDetail signOut(UUID callerId, UUID userId) {
         requireManageable(callerId, userId);
         int ended = sessions.revokeAll(userId, RevokeReason.ADMIN_SIGN_OUT);
@@ -145,6 +150,7 @@ public class UserAdminService {
      * a second erasure is 409, so a mistyped ID cannot pass silently as "already done".
      */
     @Transactional
+    @Audited(action = "user.erase", targetType = "user", targetId = "#userId")
     public AdminUserDetail erase(UUID callerId, UUID userId) {
         User user = requireManageable(callerId, userId);
         if (user.isErased()) {

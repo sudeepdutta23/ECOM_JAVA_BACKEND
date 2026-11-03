@@ -1,5 +1,6 @@
 package com.ecommerce.backend.org.service;
 
+import com.ecommerce.backend.common.audit.Audited;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
@@ -73,6 +74,7 @@ public class OrganizationAdminService {
     }
 
     @Transactional
+    @Audited(action = "org.approve", targetType = "organization", targetId = "#organizationId", organizationId = "#organizationId")
     public AdminOrganizationDetail approve(UUID callerId, UUID organizationId) {
         Organization organization = manageable(callerId, organizationId);
         requireStatus(organization, OrganizationStatus.PENDING_APPROVAL, "only pending organisations can be approved");
@@ -84,6 +86,7 @@ public class OrganizationAdminService {
 
     /** Members keep read access; every change and every sale (Phase 6) is refused until reactivation. */
     @Transactional
+    @Audited(action = "org.suspend", targetType = "organization", targetId = "#organizationId", organizationId = "#organizationId")
     public AdminOrganizationDetail suspend(UUID callerId, UUID organizationId, String reason) {
         Organization organization = manageable(callerId, organizationId);
         requireStatus(organization, OrganizationStatus.ACTIVE, "only active organisations can be suspended");
@@ -94,6 +97,7 @@ public class OrganizationAdminService {
     }
 
     @Transactional
+    @Audited(action = "org.reactivate", targetType = "organization", targetId = "#organizationId", organizationId = "#organizationId")
     public AdminOrganizationDetail reactivate(UUID callerId, UUID organizationId) {
         Organization organization = manageable(callerId, organizationId);
         requireStatus(organization, OrganizationStatus.SUSPENDED, "only suspended organisations can be reactivated");
@@ -105,6 +109,7 @@ public class OrganizationAdminService {
 
     /** Closes for good, from any status; for example a seller that never answered the review. */
     @Transactional
+    @Audited(action = "org.close", targetType = "organization", targetId = "#organizationId", organizationId = "#organizationId")
     public AdminOrganizationDetail close(UUID callerId, UUID organizationId) {
         Organization organization = manageable(callerId, organizationId);
         int revoked = closeAndRevokeInvitations(organization, callerId, invitations, events, Instant.now(clock));

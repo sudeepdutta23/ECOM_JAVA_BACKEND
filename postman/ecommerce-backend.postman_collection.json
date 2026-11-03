@@ -2454,6 +2454,31 @@
       ]
     },
     {
+      "name": "Administration: audit",
+      "description": "The append-only audit log; needs audit:read.",
+      "item": [
+        {
+          "name": "Audit log",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/audit?size=20",
+            "description": "Newest first. Filters: actorId, targetId, organizationId, action (user.suspend). Keyset paging: pass nextBefore as ?before= for older entries."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Dev tools",
       "item": [
         {

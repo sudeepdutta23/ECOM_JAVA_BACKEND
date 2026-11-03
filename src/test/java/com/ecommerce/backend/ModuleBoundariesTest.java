@@ -33,7 +33,7 @@ class ModuleBoundariesTest {
     static final ArchRule commonDependsOnNoModule = noClasses().that().resideInAPackage(BASE + "common..")
             .should().dependOnClassesThat().resideInAnyPackage(BASE + "auth..", BASE + "rbac..", BASE + "org..",
                     BASE + "profile..", BASE + "catalog..", BASE + "order..", BASE + "notification..",
-                    BASE + "system..");
+                    BASE + "audit..", BASE + "system..");
 
     @ArchTest
     static final ArchRule rbacKnowsNoOtherModule = noClasses().that().resideInAPackage(BASE + "rbac..")
@@ -69,6 +69,11 @@ class ModuleBoundariesTest {
     static final ArchRule nothingButAuthKnowsNotifications = noClasses().that().resideInAnyPackage(BASE + "catalog..",
                     BASE + "org..", BASE + "profile..", BASE + "order..")
             .should().dependOnClassesThat().resideInAPackage(BASE + "notification..");
+
+    /** Modules mark actions with common's @Audited; none may call the audit module itself. */
+    @ArchTest
+    static final ArchRule nobodyKnowsTheAuditModule = noClasses().that().resideOutsideOfPackage(BASE + "audit..")
+            .should().dependOnClassesThat().resideInAPackage(BASE + "audit..");
 
     @ArchTest
     static final ArchRule ordersDoNotKnowAuth = noClasses().that().resideInAPackage(BASE + "order..")

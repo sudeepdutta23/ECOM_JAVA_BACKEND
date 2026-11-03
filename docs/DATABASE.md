@@ -198,6 +198,10 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 
 `product_images`: metadata of re-encoded product images (bytes in `FileStorage`), tenant column, CHECKs on type, size and dimensions, `idx_product_images_product_id (product_id, id)`. Details: [modules/FILES.md](modules/FILES.md).
 
+## Phase 9 changes (V18, audit)
+
+`audit_events`: append-only (a trigger refuses UPDATE, DELETE and TRUNCATE), no foreign keys (entries outlive what they name), IDs only plus the client IP. Indexes by actor, target and organisation, each with `id` for keyset paging. `audit:read` for ADMIN. Details: [modules/AUDIT.md](modules/AUDIT.md).
+
 ## Migration history
 
 | Version | Description |
@@ -219,3 +223,4 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 | V15 | checkouts, orders, order_items: one order per seller, snapshots, idempotency key, payment reference |
 | V16 | notifications, notification_preferences |
 | V17 | product_images |
+| V18 | audit_events (append-only trigger); `audit:read` for ADMIN |

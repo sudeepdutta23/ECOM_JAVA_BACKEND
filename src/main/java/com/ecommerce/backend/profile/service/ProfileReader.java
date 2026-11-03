@@ -1,5 +1,6 @@
 package com.ecommerce.backend.profile.service;
 
+import com.ecommerce.backend.common.audit.Audited;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
 import com.ecommerce.backend.profile.PersonalProfile;
 import com.ecommerce.backend.profile.entity.UserAddress;
@@ -64,6 +65,7 @@ public class ProfileReader {
      * is the audit trail until the audit module (Phase 9) stores it.
      */
     @Transactional(readOnly = true)
+    @Audited(action = "profile.view", targetType = "user", targetId = "#userId")
     public PersonalProfile readForSupport(UUID staffId, UUID userId) {
         if (!users.exists(userId)) {
             throw new ResourceNotFoundException("User");

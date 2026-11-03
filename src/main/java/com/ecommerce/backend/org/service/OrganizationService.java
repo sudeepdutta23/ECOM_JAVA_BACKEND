@@ -1,5 +1,6 @@
 package com.ecommerce.backend.org.service;
 
+import com.ecommerce.backend.common.audit.Audited;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.RequestValidationException;
@@ -157,6 +158,7 @@ public class OrganizationService {
      * only be closed by the platform: closing must not become a way to walk away from a review.
      */
     @Transactional
+    @Audited(action = "org.close-by-owner", targetType = "organization", targetId = "#organizationId", organizationId = "#organizationId")
     public OrganizationResponse close(UUID userId, UUID organizationId) {
         Organization organization = organizations.findByIdForUpdate(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization"));

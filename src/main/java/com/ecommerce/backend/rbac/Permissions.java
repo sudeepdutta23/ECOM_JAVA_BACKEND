@@ -20,6 +20,7 @@ public final class Permissions {
     public static final String ORG_MANAGE = "org:manage";
     public static final String PROFILE_READ = "profile:read";
     public static final String CATALOG_MANAGE = "catalog:manage";
+    public static final String AUDIT_READ = "audit:read";
 
     private Permissions() {
     }

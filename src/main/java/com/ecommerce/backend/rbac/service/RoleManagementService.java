@@ -1,5 +1,6 @@
 package com.ecommerce.backend.rbac.service;
 
+import com.ecommerce.backend.common.audit.Audited;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.DuplicateResourceException;
 import com.ecommerce.backend.common.exception.ErrorCode;
@@ -65,6 +66,7 @@ public class RoleManagementService {
     }
 
     @Transactional
+    @Audited(action = "role.create", targetType = "role", targetId = "#result.id")
     public Role create(UUID callerId, String code, RoleCommand command) {
         Set<Permission> permissions = parse(command.permissionCodes());
         requireWithinCallerPower(callerId, permissions);
@@ -79,6 +81,7 @@ public class RoleManagementService {
     }
 
     @Transactional
+    @Audited(action = "role.update", targetType = "role", targetId = "#roleId")
     public Role update(UUID callerId, UUID roleId, RoleCommand command, long expectedVersion) {
         Role role = get(roleId);
         requireCustom(role);
@@ -101,6 +104,7 @@ public class RoleManagementService {
     }
 
     @Transactional
+    @Audited(action = "role.delete", targetType = "role", targetId = "#roleId")
     public void delete(UUID callerId, UUID roleId) {
         Role role = get(roleId);
         requireCustom(role);

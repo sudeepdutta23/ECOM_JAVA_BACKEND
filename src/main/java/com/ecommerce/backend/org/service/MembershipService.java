@@ -1,5 +1,6 @@
 package com.ecommerce.backend.org.service;
 
+import com.ecommerce.backend.common.audit.Audited;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
@@ -73,6 +74,7 @@ public class MembershipService {
     }
 
     @Transactional
+    @Audited(action = "org.member-role", targetType = "user", targetId = "#userId", organizationId = "#organizationId", detail = "'role=' + #newRole")
     public MemberResponse changeRole(UUID callerId, UUID organizationId, UUID userId, OrgRole newRole) {
         requireNotSelf(callerId, userId);
         lock(organizationId);
@@ -93,6 +95,7 @@ public class MembershipService {
     }
 
     @Transactional
+    @Audited(action = "org.member-remove", targetType = "user", targetId = "#userId", organizationId = "#organizationId")
     public void remove(UUID callerId, UUID organizationId, UUID userId) {
         requireNotSelf(callerId, userId);
         lock(organizationId);

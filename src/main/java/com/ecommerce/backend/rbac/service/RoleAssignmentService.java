@@ -1,5 +1,6 @@
 package com.ecommerce.backend.rbac.service;
 
+import com.ecommerce.backend.common.audit.Audited;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
@@ -64,6 +65,7 @@ public class RoleAssignmentService {
     }
 
     @Transactional
+    @Audited(action = "role.grant", targetType = "user", targetId = "#userId", detail = "'role=' + #roleId")
     public void grant(UUID callerId, UUID userId, UUID roleId) {
         requireNotSelf(callerId, userId);
         requireUser(userId);
@@ -77,6 +79,7 @@ public class RoleAssignmentService {
     }
 
     @Transactional
+    @Audited(action = "role.revoke", targetType = "user", targetId = "#userId", detail = "'role=' + #roleId")
     public void revoke(UUID callerId, UUID userId, UUID roleId) {
         requireNotSelf(callerId, userId);
         requireUser(userId);

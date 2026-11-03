@@ -157,6 +157,7 @@ Send `X-Request-Id` (8 to 64 characters, letters, digits, `.`, `_`, `-`) to corr
 | POST | `/api/v1/notifications/{notificationId}/read` | Bearer, owner | 204; idempotent |
 | POST | `/api/v1/notifications/read-all` | Bearer | `{marked}` |
 | GET, PUT | `/api/v1/notifications/preferences` | Bearer | `{orderUpdatesEmail, sellerOrdersEmail}`; security emails always go |
+| GET | `/api/v1/admin/audit?actorId=&targetId=&organizationId=&action=&before=&size=` | Bearer + `audit:read` | Audit entries newest first; keyset cursor `nextBefore` |
 | GET | `/api/v1/profile/addresses` | Bearer | My addresses, newest first (at most 20, no paging) |
 | POST | `/api/v1/profile/addresses` | Bearer, active account | Save an address; the first becomes the default for both; 201 + Location; 400 country rules; 409 `PROFILE_ADDRESS_LIMIT` |
 | GET | `/api/v1/profile/addresses/{addressId}` | Bearer, owner | One address; 404 if not mine |

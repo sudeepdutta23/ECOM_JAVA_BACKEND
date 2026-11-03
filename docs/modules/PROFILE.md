@@ -94,7 +94,7 @@ Always in this order. Erasure takes only the first (its update waits for share h
 
 - It needs **`profile:read`** (V12, granted to `ADMIN`), deliberately separate from `user:read`. A team that manages accounts (status, sessions, lockouts) does not automatically see where people live: least privilege for personal data.
 - It is **read only**. Staff never edit someone's profile; the person does that.
-- **Every view is logged**: `Personal data viewed by staff: userId=..., by=...`, with the request ID, never with the data. That is the audit trail until the audit module (Phase 9) stores it in the database.
+- **Every view is logged**: `Personal data viewed by staff: userId=..., by=...`, with the request ID, never with the data. Since Phase 9 each view is also an `audit_events` entry (`profile.view`).
 - Unknown and erased accounts get the same 404, so the endpoint does not reveal which accounts were erased.
 
 **Download my data.** `GET /api/v1/auth/me/export` returns everything the platform holds about the caller, as one JSON document (GDPR articles 15 and 20: access and portability):
