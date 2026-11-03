@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Proves that every hot auth, rbac, user-admin, org, profile, catalogue, order, notification, file and audit query uses the index designed for it.
+ * Proves that every hot auth, rbac, user-admin, org, profile, catalogue, order, notification, file, audit and search query uses the index designed for it.
  *
  * <p>Test tables hold only a few rows, and for tiny tables PostgreSQL correctly prefers a
  * sequential scan. {@code SET LOCAL enable_seqscan = off} (scoped to this transaction only)
@@ -122,7 +122,10 @@ class QueryPlanIT extends AbstractIntegrationTest {
             "audit: by target, keyset       | SELECT id FROM audit_events WHERE target_id = " + ID + " AND id < " + ID + " ORDER BY id DESC LIMIT 21 | idx_audit_events_target",
             "audit: by actor, keyset        | SELECT id FROM audit_events WHERE actor_id = " + ID + " AND id < " + ID + " ORDER BY id DESC LIMIT 21 | idx_audit_events_actor",
             "audit: by organisation         | SELECT id FROM audit_events WHERE organization_id = " + ID + " ORDER BY id DESC LIMIT 21 | idx_audit_events_organization",
-            "audit: everything, keyset      | SELECT id FROM audit_events WHERE id < " + ID + " ORDER BY id DESC LIMIT 21 | pk_audit_events"
+            "audit: everything, keyset      | SELECT id FROM audit_events WHERE id < " + ID + " ORDER BY id DESC LIMIT 21 | pk_audit_events",
+            // Phase 10: storefront search and price sorting.
+            "search: full text on sale      | SELECT id FROM products WHERE status = 'ACTIVE' AND seller_active AND search_vector @@ websearch_to_tsquery('simple', 'plan') | idx_products_search",
+            "search: cheapest first         | SELECT id FROM products WHERE status = 'ACTIVE' AND seller_active ORDER BY price_minor, id LIMIT 20 | idx_products_storefront_price"
     })
     void hotQueryUsesItsIndex(String name, String sql, String expectedIndex) {
         String plan = tx.execute(status -> {

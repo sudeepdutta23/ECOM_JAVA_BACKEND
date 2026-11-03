@@ -119,7 +119,7 @@ Send `X-Request-Id` (8 to 64 characters, letters, digits, `.`, `_`, `-`) to corr
 | PUT | `/api/v1/profile` | Bearer, active account | Replace `{givenName, familyName, phoneNumber, preferredLocale, timeZone, version}`; omitted fields are cleared; no `version` on the first save; 409 `CONCURRENT_MODIFICATION` |
 | GET | `/api/v1/auth/me/export` | Bearer | Download my data: account, roles, devices, organisations, profile, addresses; attachment, `no-store`; 5 per 15 min |
 | GET | `/api/v1/admin/users/{userId}/profile` | Bearer + `profile:read` | A customer's profile and addresses (support, read only); every view logged; 404 for unknown and erased |
-| GET | `/api/v1/catalog/products?category=&seller=&page=&size=` | Public | Products on sale (active sellers only), newest first; `inStock`, no stock counts |
+| GET | `/api/v1/catalog/products?q=&category=&seller=&minPrice=&maxPrice=&inStock=&sort=&page=&size=` | Public | Search products on sale: full text, filters, sort `RELEVANCE`, `NEWEST`, `PRICE_ASC`, `PRICE_DESC`; at most 10 000 results deep |
 | GET | `/api/v1/catalog/products/{productId}` | Public | One product on sale; 404 for anything else |
 | GET | `/api/v1/catalog/categories` | Public | All categories, by name |
 | GET | `/api/v1/catalog/products/{productId}/images/{imageId}` | Public | The image bytes while the product is on sale; cached a day |

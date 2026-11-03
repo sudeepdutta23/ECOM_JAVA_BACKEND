@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-221 questions so far.
+229 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -22,6 +22,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 7: Notifications](#phase-7-notifications) | 8 | [modules/NOTIFICATIONS.md](modules/NOTIFICATIONS.md) |
 | [Phase 8: Files](#phase-8-files) | 8 | [modules/FILES.md](modules/FILES.md) |
 | [Phase 9: Audit](#phase-9-audit) | 8 | [modules/AUDIT.md](modules/AUDIT.md) |
+| [Phase 10: Search, filtering, pagination](#phase-10-search-filtering-pagination) | 8 | [modules/SEARCH.md](modules/SEARCH.md) |
 
 ## Phase 0: Setup
 
@@ -397,4 +398,19 @@ Design: [modules/AUDIT.md](modules/AUDIT.md).
 6. Why is keyset paging a better fit than page numbers for an audit log?
 7. Why an annotation and an aspect instead of calling an audit service from each method? What does it cost?
 8. Should an erasure request delete audit entries? Which data in them is personal, and what justifies keeping it?
+
+## Phase 10: Search, filtering, pagination
+
+Design: [modules/SEARCH.md](modules/SEARCH.md), [ADR-014](adr/ADR-014-search-in-postgresql.md).
+
+### Steps 10.1 and 10.2: Storefront search and review
+
+1. When is PostgreSQL full-text search enough, and what would make you move to Elasticsearch or OpenSearch?
+2. Why a generated `tsvector` column instead of computing `to_tsvector` in every query or keeping it in sync from Java?
+3. Why the `simple` text-search configuration rather than `english` for a marketplace?
+4. Why `websearch_to_tsquery` instead of `to_tsquery` for text typed by customers?
+5. How do you build a query with optional filters without ever concatenating user input into SQL? What about ORDER BY?
+6. Why add `id` as a tie-breaker to every sort?
+7. Why cap OFFSET paging at a fixed depth, and what does a deep OFFSET cost the database?
+8. Why are the search and price indexes partial?
 

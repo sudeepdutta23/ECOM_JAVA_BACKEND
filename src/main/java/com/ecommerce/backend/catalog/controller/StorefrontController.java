@@ -1,18 +1,23 @@
 package com.ecommerce.backend.catalog.controller;
 
+import com.ecommerce.backend.catalog.StorefrontSort;
 import com.ecommerce.backend.catalog.dto.CategoryResponse;
 import com.ecommerce.backend.catalog.dto.StorefrontProductResponse;
 import com.ecommerce.backend.catalog.service.CategoryService;
 import com.ecommerce.backend.catalog.service.ProductImageService;
+import com.ecommerce.backend.catalog.service.StorefrontQuery;
 import com.ecommerce.backend.catalog.service.StorefrontService;
 import com.ecommerce.backend.common.response.ApiResponse;
 import com.ecommerce.backend.common.response.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -42,13 +47,24 @@ public class StorefrontController {
     }
 
     @GetMapping(path = "/products", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Products on sale, newest first", description = "Only approved, active sellers.")
+    @Operation(summary = "Search the products on sale",
+            description = "Only approved, active sellers. Every filter is optional. q is searched in names and "
+                    + "descriptions (\"two words\" for a phrase, -word to exclude). Sort defaults to RELEVANCE with q, "
+                    + "NEWEST without. At most 10 000 results deep.")
     public ApiResponse<PageResponse<StorefrontProductResponse>> products(
+            @Parameter(description = "Search text") @RequestParam(required = false) @Size(max = 100) String q,
             @Parameter(description = "Category slug") @RequestParam(required = false) @Size(max = 50) String category,
             @Parameter(description = "Seller slug") @RequestParam(required = false) @Size(max = 50) String seller,
+            @Parameter(description = "Lowest price, inclusive") @RequestParam(required = false)
+            @DecimalMin("0") @Digits(integer = 7, fraction = 2) BigDecimal minPrice,
+            @Parameter(description = "Highest price, inclusive") @RequestParam(required = false)
+            @DecimalMin("0") @Digits(integer = 7, fraction = 2) BigDecimal maxPrice,
+            @Parameter(description = "Only products that can be bought now") @RequestParam(defaultValue = "false") boolean inStock,
+            @RequestParam(required = false) StorefrontSort sort,
             @RequestParam(defaultValue = "0") @Min(0) @Max(PageResponse.MAX_PAGE) int page,
             @RequestParam(defaultValue = PageResponse.DEFAULT_SIZE) @Min(1) @Max(PageResponse.MAX_SIZE) int size) {
-        return ApiResponse.success("Products", storefront.list(category, seller, page, size));
+        return ApiResponse.success("Products", storefront.list(new StorefrontQuery(q, category, seller, minPrice, maxPrice,
+                inStock, sort, page, size)));
     }
 
     @GetMapping(path = "/products/{productId}", produces = MediaType.APPLICATION_JSON_VALUE)

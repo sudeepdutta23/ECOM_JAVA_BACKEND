@@ -202,6 +202,10 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 
 `audit_events`: append-only (a trigger refuses UPDATE, DELETE and TRUNCATE), no foreign keys (entries outlive what they name), IDs only plus the client IP. Indexes by actor, target and organisation, each with `id` for keyset paging. `audit:read` for ADMIN. Details: [modules/AUDIT.md](modules/AUDIT.md).
 
+## Phase 10 changes (V19, search)
+
+`products.search_vector`: a generated `tsvector` (name weight A, description weight B, `simple` configuration), maintained by PostgreSQL itself. `idx_products_search` (GIN) and `idx_products_storefront_price (price_minor, id)`, both partial over what is on sale. Details: [modules/SEARCH.md](modules/SEARCH.md).
+
 ## Migration history
 
 | Version | Description |
@@ -224,3 +228,4 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 | V16 | notifications, notification_preferences |
 | V17 | product_images |
 | V18 | audit_events (append-only trigger); `audit:read` for ADMIN |
+| V19 | products.search_vector (generated), GIN search index, price index |

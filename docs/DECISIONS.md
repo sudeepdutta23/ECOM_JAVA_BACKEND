@@ -17,6 +17,7 @@ An ADR records one significant decision: the context, the choice, and its conseq
 | [ADR-011](adr/ADR-011-pagination.md) | Offset pagination for back-office lists, keyset where data is large or moving | Accepted |
 | [ADR-012](adr/ADR-012-tenancy-model.md) | Marketplace tenancy with shared tables and explicit organisation scoping | Accepted |
 | [ADR-013](adr/ADR-013-in-transaction-module-events.md) | In-transaction events between modules (seller status to the catalogue) | Accepted |
+| [ADR-014](adr/ADR-014-search-in-postgresql.md) | Storefront search in PostgreSQL full text, not a search server (yet) | Accepted |
 
 Template for new ADRs:
 
