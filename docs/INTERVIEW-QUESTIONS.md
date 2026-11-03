@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-197 questions so far.
+205 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -19,6 +19,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 4: Organisations (marketplace sellers)](#phase-4-organisations-marketplace-sellers) | 30 | [modules/ORGANIZATIONS.md](modules/ORGANIZATIONS.md) |
 | [Phase 5: Profile](#phase-5-profile) | 24 | [modules/PROFILE.md](modules/PROFILE.md) |
 | [Phase 6: Core business (catalogue and orders)](#phase-6-core-business-catalogue-and-orders) | 29 | [modules/CATALOG.md](modules/CATALOG.md) |
+| [Phase 7: Notifications](#phase-7-notifications) | 8 | [modules/NOTIFICATIONS.md](modules/NOTIFICATIONS.md) |
 
 ## Phase 0: Setup
 
@@ -349,4 +350,19 @@ Design: [modules/CATALOG.md](modules/CATALOG.md), [modules/ORDERS.md](modules/OR
 1. How do you review a commerce flow? Why "follow the money and the stock"?
 2. Which five races did Phase 6 prove with tests, and which mechanism closes each?
 3. Which accepted risks of Phase 6 belong to background jobs (Phase 12) and events (Phase 13)?
+
+## Phase 7: Notifications
+
+Design: [modules/NOTIFICATIONS.md](modules/NOTIFICATIONS.md).
+
+### Step 7.1 to 7.3: Inbox, emails, preferences and review
+
+1. Why write the in-app notification inside the order's transaction but send the email after commit?
+2. What is lost if the application crashes right after commit, and how does a transactional outbox fix it?
+3. Why does the order module publish events instead of calling a notification service?
+4. Why are email subjects fixed while the body may contain the seller's name?
+5. Why store notification links as app paths and CHECK them in the database?
+6. How does a partial index keep an unread badge cheap, and what would a plain index on `(user_id, read_at)` cost instead?
+7. Why can a person switch off order emails but not password-reset emails?
+8. How do you make sure an erased person gets no new notifications, even for orders that are still being fulfilled?
 

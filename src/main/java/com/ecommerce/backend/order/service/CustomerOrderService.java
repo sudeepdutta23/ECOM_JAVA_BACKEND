@@ -44,7 +44,7 @@ public class CustomerOrderService {
     @Transactional
     public OrderResponse cancel(UUID userId, UUID orderId, String reason) {
         SalesOrder order = orders.lockForCustomer(orderId, userId).orElseThrow(() -> new ResourceNotFoundException("Order"));
-        cancellation.cancel(order, userId, reason);
+        cancellation.cancel(order, userId, reason, true);
         log.info("Order cancelled by the customer: orderId={}, userId={}", orderId, userId);
         return OrderResponse.from(order);
     }

@@ -190,6 +190,10 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 
 `checkouts`, `orders`, `order_items` (V15): one order per seller per checkout, tenant data with RESTRICT; names, prices, the seller's name and both addresses (JSONB) are copied at checkout; each status has a CHECKed timestamp; `uk_checkouts_customer_key` makes the Idempotency-Key unique per customer. Orders are kept after erasure (tax law). Details: [modules/ORDERS.md](modules/ORDERS.md#8-data-model-v14-v15).
 
+## Phase 7 changes (V16, notifications)
+
+`notifications` (the inbox; internal links only, CHECKed) with `idx_notifications_user_id (user_id, id)` and the partial `idx_notifications_unread (user_id) WHERE read_at IS NULL` for the badge; `notification_preferences` (one optional row per account). Details: [modules/NOTIFICATIONS.md](modules/NOTIFICATIONS.md#7-data-model-v16).
+
 ## Migration history
 
 | Version | Description |
@@ -209,3 +213,4 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 | V13 | categories, products; `catalog:manage` for ADMIN |
 | V14 | cart_items: one cart per account, quantities only |
 | V15 | checkouts, orders, order_items: one order per seller, snapshots, idempotency key, payment reference |
+| V16 | notifications, notification_preferences |

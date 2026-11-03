@@ -3,8 +3,10 @@ package com.ecommerce.backend.org.service;
 import com.ecommerce.backend.org.OrganizationStatus;
 import com.ecommerce.backend.org.SellerInfo;
 import com.ecommerce.backend.org.entity.Organization;
+import com.ecommerce.backend.org.repository.OrganizationMemberRepository;
 import com.ecommerce.backend.org.repository.OrganizationRepository;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,9 +24,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class SellerDirectory {
 
     private final OrganizationRepository organizations;
+    private final OrganizationMemberRepository members;
 
-    public SellerDirectory(OrganizationRepository organizations) {
+    public SellerDirectory(OrganizationRepository organizations, OrganizationMemberRepository members) {
         this.organizations = organizations;
+        this.members = members;
+    }
+
+    /** Everyone who works for the seller, whatever their role: who to tell about its orders. */
+    @Transactional(readOnly = true)
+    public List<UUID> memberIds(UUID organizationId) {
+        return members.findUserIds(organizationId);
     }
 
     /** One query for a whole page of products (no N+1). IDs of sellers that are not active are absent. */

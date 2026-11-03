@@ -5,6 +5,7 @@ import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.RequestValidationException;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
 import com.ecommerce.backend.common.response.PageResponse;
+import com.ecommerce.backend.order.OrderEvent;
 import com.ecommerce.backend.order.OrderStatus;
 import com.ecommerce.backend.order.dto.OrderResponse;
 import com.ecommerce.backend.order.dto.OrderSummary;
@@ -20,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,13 +42,15 @@ public class SellerOrderService {
     private final SalesOrderRepository orders;
     private final OrganizationGuard guard;
     private final OrderCancellation cancellation;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public SellerOrderService(SalesOrderRepository orders, OrganizationGuard guard, OrderCancellation cancellation,
-                              Clock clock) {
+                              ApplicationEventPublisher events, Clock clock) {
         this.orders = orders;
         this.guard = guard;
         this.cancellation = cancellation;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -72,6 +76,8 @@ public class SellerOrderService {
         requireStatus(order, OrderStatus.PAID, "only paid orders can be shipped");
         order.ship(trackingNumber, Instant.now(clock));
         orders.flush();
+        events.publishEvent(new OrderEvent.Shipped(orderId, organizationId, order.getCustomerId(), order.getSellerName(),
+                trackingNumber));
         log.info("Order shipped: organizationId={}, orderId={}, by={}", organizationId, orderId, userId);
         return OrderResponse.from(order);
     }
@@ -82,6 +88,7 @@ public class SellerOrderService {
         requireStatus(order, OrderStatus.SHIPPED, "only shipped orders can be delivered");
         order.markDelivered(Instant.now(clock));
         orders.flush();
+        events.publishEvent(new OrderEvent.Delivered(orderId, organizationId, order.getCustomerId(), order.getSellerName()));
         log.info("Order delivered: organizationId={}, orderId={}, by={}", organizationId, orderId, userId);
         return OrderResponse.from(order);
     }
@@ -93,7 +100,7 @@ public class SellerOrderService {
         if (reason == null) {
             throw RequestValidationException.of("reason", "is required: the customer is told why");
         }
-        cancellation.cancel(order, userId, reason);
+        cancellation.cancel(order, userId, reason, false);
         log.info("Order cancelled by the seller: organizationId={}, orderId={}, by={}", organizationId, orderId, userId);
         return OrderResponse.from(order);
     }

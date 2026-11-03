@@ -159,6 +159,10 @@ app:
     # The one platform currency (ISO 4217, two decimal places). Every price is in it.
     currency: ${CATALOG_CURRENCY:EUR}
 
+  notification:
+    # Email links point here; each notification carries a path inside the app.
+    frontend-base-url: ${app.auth.frontend-base-url}
+
   order:
     # Different products per cart: bounds the cart view (no paging) and the size of one checkout.
     max-cart-lines: 50

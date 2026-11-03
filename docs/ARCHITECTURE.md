@@ -54,6 +54,7 @@ com.ecommerce.backend
   profile/           Phase 5: names, phone, language, time zone, address book; see docs/modules/PROFILE.md
   catalog/           Phase 6: categories, seller products, stock, storefront; see docs/modules/CATALOG.md
   order/             Phase 6: cart, checkout, orders; see docs/modules/ORDERS.md
+  notification/      Phase 7: in-app inbox, order emails, preferences; see docs/modules/NOTIFICATIONS.md
   ...
 ```
 
@@ -77,6 +78,7 @@ auth ──> org ──> rbac ──> common
 - `org` reuses rbac's `UserDirectory` port for facts about users and never imports `auth`. Organisation authorization is read from memberships per request, not from the token ([ADR-012](adr/ADR-012-tenancy-model.md)).
 - `profile` reuses the same port, including `lockIfActive`, which locks the account row while personal data is written so that an erasure cannot be overtaken ([modules/PROFILE.md](modules/PROFILE.md)). It imports neither `auth` nor `org`, and `org` does not import it.
 - `order` uses the catalogue (prices, stock reservation), profile (addresses), org (sellers, guard) and rbac's `UserDirectory`; only auth may call it (erasure). See [modules/ORDERS.md](modules/ORDERS.md).
+- `notification` listens to `order.OrderEvent` and uses org's member list and rbac's `UserDirectory`; no business module depends on it ([modules/NOTIFICATIONS.md](modules/NOTIFICATIONS.md)).
 - `catalog` uses org's guard and seller directory. org tells it about seller status changes with an in-transaction event, never a call ([ADR-013](adr/ADR-013-in-transaction-module-events.md)).
 
 ### Request pipeline

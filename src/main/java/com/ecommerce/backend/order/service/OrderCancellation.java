@@ -3,6 +3,7 @@ package com.ecommerce.backend.order.service;
 import com.ecommerce.backend.catalog.service.ProductCatalog;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
+import com.ecommerce.backend.order.OrderEvent;
 import com.ecommerce.backend.order.OrderStatus;
 import com.ecommerce.backend.order.entity.Checkout;
 import com.ecommerce.backend.order.entity.OrderLine;
@@ -12,6 +13,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,18 +28,21 @@ class OrderCancellation {
     private final ProductCatalog catalog;
     private final CheckoutRepository checkouts;
     private final PaymentGateway gateway;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    OrderCancellation(ProductCatalog catalog, CheckoutRepository checkouts, PaymentGateway gateway, Clock clock) {
+    OrderCancellation(ProductCatalog catalog, CheckoutRepository checkouts, PaymentGateway gateway,
+                      ApplicationEventPublisher events, Clock clock) {
         this.catalog = catalog;
         this.checkouts = checkouts;
         this.gateway = gateway;
+        this.events = events;
         this.clock = clock;
     }
 
     /** @param order locked by the caller, so a parallel shipment or cancellation waits */
     @Transactional(propagation = Propagation.MANDATORY)
-    void cancel(SalesOrder order, UUID by, String reason) {
+    void cancel(SalesOrder order, UUID by, String reason, boolean byCustomer) {
         if (!order.getStatus().isCancellable()) {
             throw new BusinessException(ErrorCode.ORDER_INVALID_STATUS, "This order is " + order.getStatus()
                     + " and can no longer be cancelled.");
@@ -51,5 +56,7 @@ class OrderCancellation {
             Checkout checkout = checkouts.findById(order.getCheckoutId()).orElseThrow();
             gateway.refund(checkout.getPaymentReference(), order.getTotalMinor(), order.getCurrency());
         }
+        events.publishEvent(new OrderEvent.Cancelled(order.getId(), order.getOrganizationId(), order.getCustomerId(),
+                order.getSellerName(), byCustomer, wasPaid));
     }
 }

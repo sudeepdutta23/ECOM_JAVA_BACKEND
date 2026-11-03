@@ -4,6 +4,7 @@ import com.ecommerce.backend.auth.entity.User;
 import com.ecommerce.backend.auth.event.AccountErased;
 import com.ecommerce.backend.auth.repository.AccountTokenRepository;
 import com.ecommerce.backend.auth.repository.RefreshTokenRepository;
+import com.ecommerce.backend.notification.service.NotificationEraser;
 import com.ecommerce.backend.order.service.OrderEraser;
 import com.ecommerce.backend.org.service.MemberDeparture;
 import com.ecommerce.backend.profile.service.ProfileEraser;
@@ -33,23 +34,25 @@ class AccountEraser {
     private final MemberDeparture organizations;
     private final ProfileEraser profiles;
     private final OrderEraser orders;
+    private final NotificationEraser notifications;
     private final ApplicationEventPublisher events;
 
     AccountEraser(RefreshTokenRepository refreshTokens, AccountTokenRepository accountTokens,
                   RoleAssignmentService roleAssignments, MemberDeparture organizations, ProfileEraser profiles,
-                  OrderEraser orders, ApplicationEventPublisher events) {
+                  OrderEraser orders, NotificationEraser notifications, ApplicationEventPublisher events) {
         this.refreshTokens = refreshTokens;
         this.accountTokens = accountTokens;
         this.roleAssignments = roleAssignments;
         this.organizations = organizations;
         this.profiles = profiles;
         this.orders = orders;
+        this.notifications = notifications;
         this.events = events;
     }
 
     /** What was removed, for the log line. */
     record Erasure(int sessionTokens, int emailLinks, int roles, MemberDeparture.Removed organizationData,
-                   ProfileEraser.Removed profileData, int cartLines) {
+                   ProfileEraser.Removed profileData, int cartLines, int notifications) {
     }
 
     /**
@@ -71,8 +74,9 @@ class AccountEraser {
         MemberDeparture.Removed organizationData = organizations.forget(userId, email);
         ProfileEraser.Removed profileData = profiles.forget(userId); // after the user row: a waiting save then sees ERASED
         int cartLines = orders.forget(userId);
+        int inbox = notifications.forget(userId);
 
         events.publishEvent(new AccountErased(email));
-        return new Erasure(sessionTokens, emailLinks, roles, organizationData, profileData, cartLines);
+        return new Erasure(sessionTokens, emailLinks, roles, organizationData, profileData, cartLines, inbox);
     }
 }

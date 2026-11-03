@@ -60,6 +60,10 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
     @Query(value = "SELECT status FROM organizations WHERE id = :id FOR SHARE", nativeQuery = true)
     Optional<String> lockOrganizationStatus(@Param("id") UUID organizationId);
 
+    /** All members of an organisation. Served by {@code pk_organization_members}. */
+    @Query("select m.userId from OrganizationMember m where m.organizationId = :organizationId order by m.userId")
+    List<UUID> findUserIds(@Param("organizationId") UUID organizationId);
+
     /** Erasure: every membership of the user. Served by {@code idx_organization_members_user_id}. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from OrganizationMember m where m.userId = :userId")

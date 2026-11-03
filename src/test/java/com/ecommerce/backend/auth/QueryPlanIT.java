@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Proves that every hot auth, rbac, user-admin, org, profile, catalogue and order query uses the index designed for it.
+ * Proves that every hot auth, rbac, user-admin, org, profile, catalogue, order and notification query uses the index designed for it.
  *
  * <p>Test tables hold only a few rows, and for tiny tables PostgreSQL correctly prefers a
  * sequential scan. {@code SET LOCAL enable_seqscan = off} (scoped to this transaction only)
@@ -112,7 +112,10 @@ class QueryPlanIT extends AbstractIntegrationTest {
             "orders: seller's, by status    | SELECT id FROM orders WHERE organization_id = " + ID + " AND status = 'PAID' ORDER BY id DESC LIMIT 20 | idx_orders_organization_status or idx_orders_organization_id",
             "orders: seller's, newest       | SELECT id FROM orders WHERE organization_id = " + ID + " ORDER BY id DESC LIMIT 20 | idx_orders_organization_id",
             "orders: of a checkout          | SELECT id FROM orders WHERE checkout_id = " + ID + " ORDER BY id                   | idx_orders_checkout_id",
-            "orders: lines of an order      | SELECT * FROM order_items WHERE order_id = " + ID + " ORDER BY line_no            | pk_order_items"
+            "orders: lines of an order      | SELECT * FROM order_items WHERE order_id = " + ID + " ORDER BY line_no            | pk_order_items",
+            // Phase 7: the inbox and its badge, polled by every signed-in page.
+            "notifications: inbox, newest   | SELECT id FROM notifications WHERE user_id = " + ID + " ORDER BY id DESC LIMIT 20 | idx_notifications_user_id",
+            "notifications: unread badge    | SELECT count(*) FROM notifications WHERE user_id = " + ID + " AND read_at IS NULL | idx_notifications_unread or idx_notifications_user_id"
     })
     void hotQueryUsesItsIndex(String name, String sql, String expectedIndex) {
         String plan = tx.execute(status -> {

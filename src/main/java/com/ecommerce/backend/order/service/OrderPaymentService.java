@@ -3,6 +3,7 @@ package com.ecommerce.backend.order.service;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
+import com.ecommerce.backend.order.OrderEvent;
 import com.ecommerce.backend.order.OrderStatus;
 import com.ecommerce.backend.order.dto.CheckoutResponse;
 import com.ecommerce.backend.order.entity.Checkout;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,13 +38,15 @@ public class OrderPaymentService {
     private final CheckoutRepository checkouts;
     private final SalesOrderRepository orders;
     private final PaymentGateway gateway;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public OrderPaymentService(CheckoutRepository checkouts, SalesOrderRepository orders, PaymentGateway gateway,
-                               Clock clock) {
+                               ApplicationEventPublisher events, Clock clock) {
         this.checkouts = checkouts;
         this.orders = orders;
         this.gateway = gateway;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -71,6 +75,8 @@ public class OrderPaymentService {
         checkout.recordPayment(charge.reference(), now);
         pending.forEach(order -> order.markPaid(now));
         orders.flush();
+        pending.forEach(order -> events.publishEvent(new OrderEvent.Paid(order.getId(), order.getOrganizationId(),
+                order.getCustomerId(), order.getSellerName(), order.getTotalMinor(), order.getCurrency())));
         log.info("Checkout paid: checkoutId={}, userId={}, orders={}, amountMinor={}", checkoutId, userId, pending.size(), amount);
         return response(checkout);
     }

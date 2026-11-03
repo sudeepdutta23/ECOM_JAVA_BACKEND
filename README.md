@@ -131,7 +131,7 @@ src/main/java/com/ecommerce/backend/
   Application.java        entry point
   common/                 shared kernel: config, errors, response envelope, web filters
   system/                 connectivity endpoint
-  auth/ rbac/ org/ profile/ catalog/ order/   business modules, one design document each in docs/modules/
+  auth/ rbac/ org/ profile/ catalog/ order/ notification/   modules, one design document each in docs/modules/
 src/main/resources/
   application*.yml        configuration per profile
   db/migration/           Flyway SQL migrations
