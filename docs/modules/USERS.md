@@ -168,6 +168,8 @@ Privacy law (GDPR Art. 17 and similar) gives people the right to have their pers
 
 **Profiles (Phase 5).** Erasure deletes the profile and the address book (`profile.service.ProfileEraser`, same transaction). A profile save locks the account row first, so a save running at the same moment either finishes before the erasure deletes its data, or sees the erased account and is refused.
 
+**Carts (Phase 6).** Erasure empties the cart (`order.service.OrderEraser`). Orders are kept (tax law), with the anonymous account ID.
+
 **Not covered yet.** Files (Phase 8) and audit entries (Phase 9) belong to their modules; each will react to `AccountErased` (Phase 13 events). Database backups still hold the old data until they expire; the retention period of backups is part of the privacy policy, not of this code.
 
 ## 10. Plan

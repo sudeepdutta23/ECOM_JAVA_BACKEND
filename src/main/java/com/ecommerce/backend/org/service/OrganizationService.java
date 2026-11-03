@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -48,16 +49,19 @@ public class OrganizationService {
     private final OrganizationGuard guard;
     private final UserDirectory users;
     private final OrgProperties properties;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public OrganizationService(OrganizationRepository organizations, OrganizationMemberRepository members,
-                               OrganizationInvitationRepository invitations, OrganizationGuard guard, UserDirectory users, OrgProperties properties, Clock clock) {
+                               OrganizationInvitationRepository invitations, OrganizationGuard guard, UserDirectory users,
+                               OrgProperties properties, ApplicationEventPublisher events, Clock clock) {
         this.organizations = organizations;
         this.members = members;
         this.invitations = invitations;
         this.guard = guard;
         this.users = users;
         this.properties = properties;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -158,7 +162,7 @@ public class OrganizationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Organization"));
         OrgMembership membership = guard.require(organizationId, userId, OrgPermission.ORGANIZATION_CLOSE, Intent.WRITE);
         int revoked = OrganizationAdminService.closeAndRevokeInvitations(organization, userId, invitations,
-                Instant.now(clock));
+                events, Instant.now(clock));
         log.info("Organisation closed by an owner: organizationId={}, by={}, invitationsRevoked={}",
                 organizationId, userId, revoked);
         return OrganizationResponse.from(load(organizationId), membership.role()); // reloaded: the revoke cleared the context

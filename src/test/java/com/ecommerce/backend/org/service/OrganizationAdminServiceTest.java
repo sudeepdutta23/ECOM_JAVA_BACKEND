@@ -23,6 +23,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -35,7 +36,7 @@ class OrganizationAdminServiceTest {
     private final OrganizationMemberRepository members = mock(OrganizationMemberRepository.class);
     private final OrganizationInvitationRepository invitations = mock(OrganizationInvitationRepository.class);
     private final OrganizationAdminService service = new OrganizationAdminService(organizations, members, invitations,
-            Clock.fixed(NOW, ZoneOffset.UTC));
+            mock(ApplicationEventPublisher.class), Clock.fixed(NOW, ZoneOffset.UTC));
 
     private Organization organization;
 

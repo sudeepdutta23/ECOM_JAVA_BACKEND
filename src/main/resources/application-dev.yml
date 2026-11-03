@@ -15,6 +15,9 @@ spring:
     port: ${MAIL_PORT:1025}
 
 app:
+  # No real payment provider locally: the simulator approves every token except tok_decline.
+  payment:
+    provider: simulated
   cors:
     allowed-origins: http://localhost:3000,http://localhost:5173   # typical React / Vite dev servers
   auth:

@@ -20,13 +20,16 @@ class OrgRoleTest {
     @Test
     void managersRunTheShopButCannotCloseIt() {
         assertThat(OrgRole.MANAGER.permissions()).containsExactlyInAnyOrder(
-                OrgPermission.ORGANIZATION_READ, OrgPermission.ORGANIZATION_UPDATE, OrgPermission.MEMBER_MANAGE);
+                OrgPermission.ORGANIZATION_READ, OrgPermission.ORGANIZATION_UPDATE, OrgPermission.MEMBER_MANAGE,
+                OrgPermission.CATALOG_MANAGE, OrgPermission.ORDER_MANAGE);
         assertThat(OrgRole.MANAGER.grants(OrgPermission.ORGANIZATION_CLOSE)).isFalse();
     }
 
     @Test
-    void staffCanOnlyRead() {
-        assertThat(OrgRole.STAFF.permissions()).containsExactly(OrgPermission.ORGANIZATION_READ);
+    void staffWorkOnTheCatalogueButCannotChangeTheOrganisation() {
+        assertThat(OrgRole.STAFF.permissions()).containsExactlyInAnyOrder(OrgPermission.ORGANIZATION_READ,
+                OrgPermission.CATALOG_MANAGE, OrgPermission.ORDER_MANAGE);
+        assertThat(OrgRole.STAFF.grants(OrgPermission.ORGANIZATION_UPDATE)).isFalse();
     }
 
     @Test

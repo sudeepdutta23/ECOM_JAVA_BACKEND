@@ -20,6 +20,12 @@ spring:
 server:
   forward-headers-strategy: framework   # trust X-Forwarded-* from the load balancer for HTTPS detection
 
+app:
+  # Required: which payment provider charges customers. Only "simulated" exists so far (Phase 6);
+  # a staging environment may set it explicitly. Without it no PaymentGateway exists and startup fails.
+  payment:
+    provider: ${PAYMENT_PROVIDER}
+
 springdoc:
   api-docs:
     enabled: ${API_DOCS_ENABLED:false}

@@ -14,7 +14,7 @@ import com.tngtech.archunit.lang.ArchRule;
  * second, without Spring.
  *
  * <p>Module dependencies point one way: {@code auth -> org -> rbac -> common}, {@code auth -> rbac},
- * {@code auth -> profile -> rbac}.
+ * {@code auth -> profile -> rbac}, {@code catalog -> org}, {@code auth -> order -> catalog, profile, org}.
  * A module talks to another only through its root package (public types such as
  * {@code rbac.Permission}, {@code org.OrgPermission}) and its {@code service} package. Its entities
  * and repositories are private: that is what keeps a seller's data behind {@code OrganizationGuard},
@@ -31,11 +31,12 @@ class ModuleBoundariesTest {
     @ArchTest
     static final ArchRule commonDependsOnNoModule = noClasses().that().resideInAPackage(BASE + "common..")
             .should().dependOnClassesThat().resideInAnyPackage(BASE + "auth..", BASE + "rbac..", BASE + "org..",
-                    BASE + "profile..", BASE + "system..");
+                    BASE + "profile..", BASE + "catalog..", BASE + "order..", BASE + "system..");
 
     @ArchTest
     static final ArchRule rbacKnowsNoOtherModule = noClasses().that().resideInAPackage(BASE + "rbac..")
-            .should().dependOnClassesThat().resideInAnyPackage(BASE + "auth..", BASE + "org..", BASE + "profile..");
+            .should().dependOnClassesThat().resideInAnyPackage(BASE + "auth..", BASE + "org..", BASE + "profile..",
+                    BASE + "catalog..", BASE + "order..");
 
     @ArchTest
     static final ArchRule orgDoesNotKnowAuth = noClasses().that().resideInAPackage(BASE + "org..")
@@ -50,6 +51,25 @@ class ModuleBoundariesTest {
     static final ArchRule orgDoesNotKnowProfile = noClasses().that().resideInAPackage(BASE + "org..")
             .should().dependOnClassesThat().resideInAPackage(BASE + "profile..");
 
+    /** org tells the catalog about status changes by event; it must never call the catalog itself. */
+    @ArchTest
+    static final ArchRule orgDoesNotKnowCatalog = noClasses().that().resideInAPackage(BASE + "org..")
+            .should().dependOnClassesThat().resideInAPackage(BASE + "catalog..");
+
+    /** Orders build on the catalogue, profiles and sellers; none of them may know about orders. */
+    @ArchTest
+    static final ArchRule nothingButAuthKnowsOrders = noClasses().that().resideInAnyPackage(BASE + "catalog..",
+                    BASE + "org..", BASE + "profile..")
+            .should().dependOnClassesThat().resideInAPackage(BASE + "order..");
+
+    @ArchTest
+    static final ArchRule ordersDoNotKnowAuth = noClasses().that().resideInAPackage(BASE + "order..")
+            .should().dependOnClassesThat().resideInAPackage(BASE + "auth..");
+
+    @ArchTest
+    static final ArchRule catalogKnowsNeitherAuthNorProfile = noClasses().that().resideInAPackage(BASE + "catalog..")
+            .should().dependOnClassesThat().resideInAnyPackage(BASE + "auth..", BASE + "profile..");
+
     @ArchTest
     static final ArchRule authInternalsArePrivate = internalsOf("auth");
 
@@ -61,6 +81,12 @@ class ModuleBoundariesTest {
 
     @ArchTest
     static final ArchRule profileInternalsArePrivate = internalsOf("profile");
+
+    @ArchTest
+    static final ArchRule catalogInternalsArePrivate = internalsOf("catalog");
+
+    @ArchTest
+    static final ArchRule orderInternalsArePrivate = internalsOf("order");
 
     @ArchTest
     static final ArchRule controllersNeverTouchRepositories = noClasses().that().resideInAPackage("..controller..")

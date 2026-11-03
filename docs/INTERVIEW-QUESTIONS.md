@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-168 questions so far.
+197 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -18,6 +18,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 3: User management](#phase-3-user-management) | 31 | [modules/USERS.md](modules/USERS.md) |
 | [Phase 4: Organisations (marketplace sellers)](#phase-4-organisations-marketplace-sellers) | 30 | [modules/ORGANIZATIONS.md](modules/ORGANIZATIONS.md) |
 | [Phase 5: Profile](#phase-5-profile) | 24 | [modules/PROFILE.md](modules/PROFILE.md) |
+| [Phase 6: Core business (catalogue and orders)](#phase-6-core-business-catalogue-and-orders) | 29 | [modules/CATALOG.md](modules/CATALOG.md) |
 
 ## Phase 0: Setup
 
@@ -300,4 +301,52 @@ Design: [modules/PROFILE.md](modules/PROFILE.md).
 1. How do you review a module for privacy rather than only for access control? Which questions did this review ask?
 2. Why is "the person can always get all their data, and erasure always wins" an invariant worth a journey test?
 3. Which accepted risks of Phase 5 should later phases close, and which phase owns each?
+
+## Phase 6: Core business (catalogue and orders)
+
+Design: [modules/CATALOG.md](modules/CATALOG.md), [modules/ORDERS.md](modules/ORDERS.md).
+
+### Step 6.1: Catalogue, stock and storefront
+
+1. Why store money as a long of minor units instead of a double or a BigDecimal column? What does `RoundingMode.UNNECESSARY` protect against?
+2. Why is a stock change a delta in one UPDATE statement instead of "read, add, save"? What does the WHERE clause guarantee?
+3. How do you keep a suspended seller's products off the storefront without the catalogue joining the organisation tables or org calling the catalogue?
+4. Why must the listener for that event run in the same transaction, not after commit?
+5. Phase 4 accepted "the guard is a check, not a lock". Which race does a FOR SHARE lock on the organisation close, and why not use it for organisation renames too?
+6. Why does the storefront hide exact stock counts and answer 404 for drafts and suspended sellers?
+7. Why is the SKU unique per seller and not globally? How does the unique key behave in a race?
+8. Why RESTRICT instead of CASCADE from products to organisations?
+
+### Step 6.2: Cart
+
+1. Why does the cart store quantities but never prices? How does checkout protect the customer from a price change?
+2. Why `PUT .../items/{productId}` with a quantity instead of `POST .../items` that adds one?
+3. Why keep lines that cannot be bought in the cart instead of removing them?
+4. How is a cart view kept at three queries regardless of its size?
+5. Which information does a cart leak about stock, and why is that accepted?
+
+### Step 6.3: Checkout
+
+1. How does a checkout guarantee that the last unit is not sold twice? What happens in the losing transaction, and why does READ COMMITTED make it work?
+2. Why does checkout lock sellers and products in ID order? Describe the deadlock it prevents.
+3. How does an Idempotency-Key make retries safe, and why is a unique constraint alone not enough for parallel retries?
+4. Why does the client send `expectedTotal`, and why must the server never use it as the price?
+5. Why copy product names, prices, the seller's name and addresses into the order instead of referencing them?
+6. Why are address snapshots JSONB documents while order lines are rows?
+7. Why can only ACTIVE sellers sell, while pending ones may already build a catalogue?
+
+### Step 6.4: Payment and order life cycle
+
+1. Why must card data never reach this server? What does the client send instead, and what does that do to PCI DSS scope?
+2. How do you prevent charging twice: for two clicks, and for a retry after a timeout?
+3. Why is calling a real payment provider inside the database transaction a problem, and what replaces it?
+4. Why may a suspended seller still ship orders that were already paid?
+5. How do you make a cancellation and a shipment of the same order mutually exclusive?
+6. Why are orders kept after an erasure request? Which GDPR clause allows it, and what is still removed?
+
+### Step 6.5: Review and journey test
+
+1. How do you review a commerce flow? Why "follow the money and the stock"?
+2. Which five races did Phase 6 prove with tests, and which mechanism closes each?
+3. Which accepted risks of Phase 6 belong to background jobs (Phase 12) and events (Phase 13)?
 

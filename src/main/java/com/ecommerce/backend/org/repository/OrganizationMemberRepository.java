@@ -52,6 +52,14 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
 
     long countByOrganizationId(UUID organizationId);
 
+    /**
+     * The organisation's status with a FOR SHARE lock on its row until commit, for
+     * {@code OrganizationGuard.requireForSellerWrite}. Here rather than in the organisation repository
+     * because the guard reads memberships only; a scalar, so no entity enters the context.
+     */
+    @Query(value = "SELECT status FROM organizations WHERE id = :id FOR SHARE", nativeQuery = true)
+    Optional<String> lockOrganizationStatus(@Param("id") UUID organizationId);
+
     /** Erasure: every membership of the user. Served by {@code idx_organization_members_user_id}. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from OrganizationMember m where m.userId = :userId")

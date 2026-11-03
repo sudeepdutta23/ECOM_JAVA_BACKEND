@@ -4,6 +4,7 @@ import com.ecommerce.backend.auth.entity.User;
 import com.ecommerce.backend.auth.event.AccountErased;
 import com.ecommerce.backend.auth.repository.AccountTokenRepository;
 import com.ecommerce.backend.auth.repository.RefreshTokenRepository;
+import com.ecommerce.backend.order.service.OrderEraser;
 import com.ecommerce.backend.org.service.MemberDeparture;
 import com.ecommerce.backend.profile.service.ProfileEraser;
 import com.ecommerce.backend.rbac.service.RoleAssignmentService;
@@ -31,22 +32,24 @@ class AccountEraser {
     private final RoleAssignmentService roleAssignments;
     private final MemberDeparture organizations;
     private final ProfileEraser profiles;
+    private final OrderEraser orders;
     private final ApplicationEventPublisher events;
 
     AccountEraser(RefreshTokenRepository refreshTokens, AccountTokenRepository accountTokens,
                   RoleAssignmentService roleAssignments, MemberDeparture organizations, ProfileEraser profiles,
-                  ApplicationEventPublisher events) {
+                  OrderEraser orders, ApplicationEventPublisher events) {
         this.refreshTokens = refreshTokens;
         this.accountTokens = accountTokens;
         this.roleAssignments = roleAssignments;
         this.organizations = organizations;
         this.profiles = profiles;
+        this.orders = orders;
         this.events = events;
     }
 
     /** What was removed, for the log line. */
     record Erasure(int sessionTokens, int emailLinks, int roles, MemberDeparture.Removed organizationData,
-                   ProfileEraser.Removed profileData) {
+                   ProfileEraser.Removed profileData, int cartLines) {
     }
 
     /**
@@ -67,8 +70,9 @@ class AccountEraser {
         int roles = roleAssignments.removeAllRoles(userId);
         MemberDeparture.Removed organizationData = organizations.forget(userId, email);
         ProfileEraser.Removed profileData = profiles.forget(userId); // after the user row: a waiting save then sees ERASED
+        int cartLines = orders.forget(userId);
 
         events.publishEvent(new AccountErased(email));
-        return new Erasure(sessionTokens, emailLinks, roles, organizationData, profileData);
+        return new Erasure(sessionTokens, emailLinks, roles, organizationData, profileData, cartLines);
     }
 }

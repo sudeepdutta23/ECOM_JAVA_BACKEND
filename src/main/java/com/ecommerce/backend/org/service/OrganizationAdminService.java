@@ -6,6 +6,7 @@ import com.ecommerce.backend.common.exception.ResourceNotFoundException;
 import com.ecommerce.backend.common.response.PageResponse;
 import com.ecommerce.backend.org.OrgRole;
 import com.ecommerce.backend.org.OrganizationStatus;
+import com.ecommerce.backend.org.OrganizationStatusChanged;
 import com.ecommerce.backend.org.dto.AdminOrganizationDetail;
 import com.ecommerce.backend.org.dto.AdminOrganizationSummary;
 import com.ecommerce.backend.org.entity.Organization;
@@ -18,6 +19,7 @@ import java.time.Instant;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -44,13 +46,16 @@ public class OrganizationAdminService {
     private final OrganizationRepository organizations;
     private final OrganizationMemberRepository members;
     private final OrganizationInvitationRepository invitations;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public OrganizationAdminService(OrganizationRepository organizations, OrganizationMemberRepository members,
-                                    OrganizationInvitationRepository invitations, Clock clock) {
+                                    OrganizationInvitationRepository invitations, ApplicationEventPublisher events,
+                                    Clock clock) {
         this.organizations = organizations;
         this.members = members;
         this.invitations = invitations;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -72,6 +77,7 @@ public class OrganizationAdminService {
         Organization organization = manageable(callerId, organizationId);
         requireStatus(organization, OrganizationStatus.PENDING_APPROVAL, "only pending organisations can be approved");
         organization.approve(callerId, Instant.now(clock));
+        events.publishEvent(new OrganizationStatusChanged(organizationId, organization.getStatus()));
         log.info("Organisation approved: organizationId={}, by={}", organizationId, callerId);
         return detail(organization);
     }
@@ -82,6 +88,7 @@ public class OrganizationAdminService {
         Organization organization = manageable(callerId, organizationId);
         requireStatus(organization, OrganizationStatus.ACTIVE, "only active organisations can be suspended");
         organization.suspend(reason, callerId, Instant.now(clock));
+        events.publishEvent(new OrganizationStatusChanged(organizationId, organization.getStatus()));
         log.info("Organisation suspended: organizationId={}, by={}", organizationId, callerId); // never the reason
         return detail(organization);
     }
@@ -91,6 +98,7 @@ public class OrganizationAdminService {
         Organization organization = manageable(callerId, organizationId);
         requireStatus(organization, OrganizationStatus.SUSPENDED, "only suspended organisations can be reactivated");
         organization.reactivate(callerId, Instant.now(clock));
+        events.publishEvent(new OrganizationStatusChanged(organizationId, organization.getStatus()));
         log.info("Organisation reactivated: organizationId={}, by={}", organizationId, callerId);
         return detail(organization);
     }
@@ -99,7 +107,7 @@ public class OrganizationAdminService {
     @Transactional
     public AdminOrganizationDetail close(UUID callerId, UUID organizationId) {
         Organization organization = manageable(callerId, organizationId);
-        int revoked = closeAndRevokeInvitations(organization, callerId, invitations, Instant.now(clock));
+        int revoked = closeAndRevokeInvitations(organization, callerId, invitations, events, Instant.now(clock));
         log.info("Organisation closed by the platform: organizationId={}, by={}, invitationsRevoked={}",
                 organizationId, callerId, revoked);
         return detail(organization);
@@ -107,14 +115,17 @@ public class OrganizationAdminService {
 
     /**
      * Shared with the owner's own close: the organisation ends, and so do its open invitation links.
-     * Callers hold the organisation row lock, so a membership change cannot interleave.
+     * Callers hold the organisation row lock, so a membership change cannot interleave. Listeners of
+     * {@link OrganizationStatusChanged} (the catalog hides the products) run in the same transaction.
      */
     static int closeAndRevokeInvitations(Organization organization, UUID by,
-                                         OrganizationInvitationRepository invitations, Instant now) {
+                                         OrganizationInvitationRepository invitations,
+                                         ApplicationEventPublisher events, Instant now) {
         if (organization.isClosed()) {
             throw new BusinessException(ErrorCode.ORG_INVALID_STATUS, "This organisation is already closed.");
         }
         organization.close(by, now);
+        events.publishEvent(new OrganizationStatusChanged(organization.getId(), organization.getStatus()));
         return invitations.revokeAllOpen(organization.getId(), now); // flushes the status change first
     }
 

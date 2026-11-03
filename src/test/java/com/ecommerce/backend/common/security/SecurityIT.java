@@ -39,7 +39,8 @@ import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
  */
 class SecurityIT extends AbstractIntegrationTest {
 
-    private static final String PROTECTED_PATH = "/api/v1/orders";
+    /** Authenticated but unmapped: 404 proves the token was accepted. Never give this path an endpoint. */
+    private static final String PROTECTED_PATH = "/api/v1/security-probe";
 
     @Autowired
     private TestRestTemplate rest;

@@ -77,4 +77,32 @@ class OrganizationGuardTest {
         assertThatThrownBy(call::run).isInstanceOfSatisfying(BusinessException.class,
                 e -> assertThat(e.getErrorCode()).isEqualTo(expected));
     }
+
+    // ------------------------------------------------------------------ requireForSellerWrite
+
+    @Test
+    void sellerWritesDecideOnTheLockedStatusNotOnTheUnlockedRead() {
+        membership(OrgRole.STAFF, OrganizationStatus.ACTIVE);          // read without a lock
+        when(members.lockOrganizationStatus(ORG)).thenReturn(Optional.of("SUSPENDED")); // suspended meanwhile
+
+        assertCode(() -> guard.requireForSellerWrite(ORG, USER, OrgPermission.CATALOG_MANAGE), ErrorCode.ORG_INVALID_STATUS);
+    }
+
+    @Test
+    void sellerWritesReturnTheLockedStatus() {
+        membership(OrgRole.STAFF, OrganizationStatus.PENDING_APPROVAL);
+        when(members.lockOrganizationStatus(ORG)).thenReturn(Optional.of("ACTIVE")); // approved meanwhile
+
+        assertThat(guard.requireForSellerWrite(ORG, USER, OrgPermission.CATALOG_MANAGE).organizationStatus())
+                .isEqualTo(OrganizationStatus.ACTIVE);
+    }
+
+    @Test
+    void sellerWritesCheckMembershipAndPermissionBeforeLocking() {
+        assertThatThrownBy(() -> guard.requireForSellerWrite(ORG, USER, OrgPermission.CATALOG_MANAGE))
+                .isInstanceOf(ResourceNotFoundException.class);
+        membership(OrgRole.STAFF, OrganizationStatus.ACTIVE);
+        assertCode(() -> guard.requireForSellerWrite(ORG, USER, OrgPermission.MEMBER_MANAGE), ErrorCode.FORBIDDEN);
+        org.mockito.Mockito.verify(members, org.mockito.Mockito.never()).lockOrganizationStatus(ORG);
+    }
 }

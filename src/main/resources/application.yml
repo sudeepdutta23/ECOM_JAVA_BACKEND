@@ -126,6 +126,11 @@ app:
                 /api/v1/auth/me/erase, /api/v1/organizations/invitations/accept]
         capacity: 30
         period: 1m
+      - name: checkout                    # each call locks stock and sellers: bound what one client can hold
+        method: POST
+        paths: [/api/v1/checkout]
+        capacity: 20
+        period: 1m
       - name: data-export                 # reads every module for one person: cheap to ask, costly to serve
         method: GET
         paths: [/api/v1/auth/me/export]
@@ -149,6 +154,14 @@ app:
     max-pending-invitations: 50
     invitation-ttl: 7d
     frontend-base-url: ${app.auth.frontend-base-url}
+
+  catalog:
+    # The one platform currency (ISO 4217, two decimal places). Every price is in it.
+    currency: ${CATALOG_CURRENCY:EUR}
+
+  order:
+    # Different products per cart: bounds the cart view (no paging) and the size of one checkout.
+    max-cart-lines: 50
 
   profile:
     # Saved addresses per account: enough for any household; bounds the list (no paging).

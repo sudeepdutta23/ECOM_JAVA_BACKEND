@@ -16,5 +16,9 @@ public enum OrgPermission {
     /** Invite, re-role and remove members ranked below you. */
     MEMBER_MANAGE,
     /** Close the organisation for good. */
-    ORGANIZATION_CLOSE
+    ORGANIZATION_CLOSE,
+    /** Create and edit the seller's products, prices and stock (Phase 6). */
+    CATALOG_MANAGE,
+    /** Fulfil the seller's orders: ship, mark delivered, cancel (Phase 6). */
+    ORDER_MANAGE
 }

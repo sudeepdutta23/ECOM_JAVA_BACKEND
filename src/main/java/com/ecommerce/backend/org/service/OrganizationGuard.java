@@ -64,6 +64,24 @@ public class OrganizationGuard {
         return membership;
     }
 
+    /**
+     * For writes to the seller's own data (products, stock, later orders), not to the organisation
+     * row itself: the membership check of {@link #require} with intent WRITE, plus a FOR SHARE lock
+     * on the organisation row until the caller's transaction ends.
+     *
+     * <p>Status changes (suspend, close) lock that row FOR UPDATE, so they wait for writes in
+     * progress, and a write that starts after them sees the new status and is refused. Without the
+     * lock a product could go live, or an order be placed, just after the seller was suspended.
+     * Several writes of one seller can hold the share lock at once.
+     */
+    public OrgMembership requireForSellerWrite(UUID organizationId, UUID userId, OrgPermission permission) {
+        OrgMembership membership = require(organizationId, userId, permission, Intent.READ);
+        OrganizationStatus status = members.lockOrganizationStatus(organizationId).map(OrganizationStatus::valueOf)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization"));
+        requireWritable(status);
+        return new OrgMembership(membership.organizationId(), membership.userId(), membership.role(), status);
+    }
+
     /** The rank rule ({@link OrgRole#canManage}): 403 {@code ORG_RANK_DENIED} for a role at or above yours. */
     static void requireRank(OrgRole callerRole, OrgRole role) {
         if (!callerRole.canManage(role)) {

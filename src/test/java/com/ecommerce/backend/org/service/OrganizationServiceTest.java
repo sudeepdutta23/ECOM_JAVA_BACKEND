@@ -34,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -47,7 +48,8 @@ class OrganizationServiceTest {
     private final UserDirectory users = mock(UserDirectory.class);
     private final OrganizationInvitationRepository invitations = mock(OrganizationInvitationRepository.class);
     private final OrganizationService service = new OrganizationService(organizations, members, invitations,
-            new OrganizationGuard(members), users, OrgFixtures.PROPERTIES, Clock.fixed(NOW, ZoneOffset.UTC));
+            new OrganizationGuard(members), users, OrgFixtures.PROPERTIES, mock(ApplicationEventPublisher.class),
+            Clock.fixed(NOW, ZoneOffset.UTC));
 
     @BeforeEach
     void setUp() {

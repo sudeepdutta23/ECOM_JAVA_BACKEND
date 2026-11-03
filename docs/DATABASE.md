@@ -173,6 +173,23 @@ An erased account keeps its row (later tables reference `users.id`) but no perso
 
 Details: [modules/PROFILE.md](modules/PROFILE.md#8-data-model-v10-v11).
 
+## Phase 6 changes (V13, catalogue)
+
+`categories` (platform-wide, slug unique) and `products` (tenant data: `organization_id NOT NULL`, RESTRICT, so a seller's history cannot be deleted by accident). Money is `price_minor BIGINT` in cents plus `currency`; stock is an `INTEGER` with a CHECK of 0 to 10 000 000, changed only by atomic UPDATEs. `seller_active` is the catalogue's copy of the seller's status ([ADR-013](adr/ADR-013-in-transaction-module-events.md)).
+
+| Index | Serves |
+|---|---|
+| `uk_products_organization_sku` | SKU unique per seller |
+| `idx_products_organization_id (organization_id, id)` | Seller's list, storefront by seller, seller status changes |
+| `idx_products_storefront (id) WHERE status = 'ACTIVE' AND seller_active` | Storefront newest first; partial |
+| `idx_products_category_id (category_id, id)` | Storefront by category; category in use |
+
+Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
+
+`cart_items` (V14): `(user_id, product_id)` primary key, quantity 1 to 99, no price.
+
+`checkouts`, `orders`, `order_items` (V15): one order per seller per checkout, tenant data with RESTRICT; names, prices, the seller's name and both addresses (JSONB) are copied at checkout; each status has a CHECKed timestamp; `uk_checkouts_customer_key` makes the Idempotency-Key unique per customer. Orders are kept after erasure (tax law). Details: [modules/ORDERS.md](modules/ORDERS.md#8-data-model-v14-v15).
+
 ## Migration history
 
 | Version | Description |
@@ -189,3 +206,6 @@ Details: [modules/PROFILE.md](modules/PROFILE.md#8-data-model-v10-v11).
 | V10 | user_profiles: names, phone (E.164), language, time zone |
 | V11 | user_addresses: address book, one default shipping and one default billing address per account |
 | V12 | `profile:read` for ADMIN (support access to personal data) |
+| V13 | categories, products; `catalog:manage` for ADMIN |
+| V14 | cart_items: one cart per account, quantities only |
+| V15 | checkouts, orders, order_items: one order per seller, snapshots, idempotency key, payment reference |

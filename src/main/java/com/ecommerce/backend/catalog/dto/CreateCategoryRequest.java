@@ -1,0 +1,25 @@
+package com.ecommerce.backend.catalog.dto;
+
+import com.ecommerce.backend.catalog.entity.Category;
+import com.ecommerce.backend.common.validation.Inputs;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+/** Body of {@code POST /api/v1/admin/categories}. */
+@Schema(description = "A new product category")
+public record CreateCategoryRequest(
+        @Schema(example = "books", description = "Lower-case handle used in storefront URLs; never changes")
+        @NotBlank @Pattern(regexp = Category.SLUG_REGEX, message = "must be 2 to 50 lower-case letters, digits or hyphens")
+        String slug,
+
+        @Schema(example = "Books")
+        @NotBlank @Size(max = 100) @Pattern(regexp = Inputs.NO_HIDDEN_CHARACTERS, message = Inputs.HIDDEN_CHARACTERS_MESSAGE)
+        String name) {
+
+    public CreateCategoryRequest {
+        slug = slug == null ? null : Category.normalizeSlug(slug);
+        name = Inputs.text(name);
+    }
+}

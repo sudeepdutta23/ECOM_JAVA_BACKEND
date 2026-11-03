@@ -54,7 +54,7 @@ class TenantIsolationIT extends AbstractIntegrationTest {
     private static final Pattern PATH_VARIABLE = Pattern.compile("\\{([^}]+)}");
     private static final Set<String> BODY_METHODS = Set.of("post", "put", "patch");
     /** The org endpoints of this phase; later phases only add. Guards against discovering nothing. */
-    private static final int KNOWN_ORG_OPERATIONS = 10;
+    private static final int KNOWN_ORG_OPERATIONS = 22;
 
     @Autowired
     private TestRestTemplate rest;
@@ -94,9 +94,14 @@ class TenantIsolationIT extends AbstractIntegrationTest {
         UUID staffId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", UUID.class, staff);
         String invitation = client.postJson("/api/v1/organizations/" + target + "/invitations",
                 Map.of("email", "invitee-" + UUID.randomUUID() + DOMAIN, "role", "STAFF"), ownerToken).getBody();
+        String product = client.postJson("/api/v1/organizations/" + target + "/products",
+                Map.of("sku", "ISO-1", "name", "Target product", "price", 10), ownerToken).getBody();
+        String productId = read(product).at("/data/id").asText();
         targetFixtures = Map.of(
                 "userId", staffId.toString(),
-                "invitationId", read(invitation).at("/data/id").asText());
+                "invitationId", read(invitation).at("/data/id").asText(),
+                "productId", productId,
+                "orderId", paidOrder(target, staffId, UUID.fromString(productId)).toString());
 
         outsiderToken = token(account("outsider"));
         otherSeller = organization(outsiderToken); // the outsider owns a seller of their own
@@ -104,7 +109,13 @@ class TenantIsolationIT extends AbstractIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        slugs.forEach(slug -> jdbc.update("DELETE FROM organizations WHERE slug = ?", slug));
+        slugs.forEach(slug -> {
+            // Orders and products restrict deleting their seller (organisations are never deleted by the application).
+            jdbc.update("DELETE FROM orders WHERE organization_id = (SELECT id FROM organizations WHERE slug = ?)", slug);
+            jdbc.update("DELETE FROM products WHERE organization_id = (SELECT id FROM organizations WHERE slug = ?)", slug);
+            jdbc.update("DELETE FROM organizations WHERE slug = ?", slug);
+        });
+        jdbc.update("DELETE FROM checkouts WHERE idempotency_key LIKE 'iso-%'");
         jdbc.update("DELETE FROM users WHERE email LIKE '%" + DOMAIN + "'");
     }
 
@@ -221,7 +232,29 @@ class TenantIsolationIT extends AbstractIntegrationTest {
                                   FROM organization_members m WHERE m.organization_id = o.id)
                        || '|' || (SELECT count(*) FROM organization_invitations i
                                   WHERE i.organization_id = o.id AND i.accepted_at IS NULL AND i.revoked_at IS NULL)
+                       || '|' || (SELECT string_agg(p.id || ':' || p.sku || ':' || p.name || ':' || p.price_minor
+                                         || ':' || p.stock || ':' || p.status || ':' || p.version, ',' ORDER BY p.id)
+                                  FROM products p WHERE p.organization_id = o.id)
+                       || '|' || (SELECT string_agg(x.id || ':' || x.status || ':' || x.version, ',' ORDER BY x.id)
+                                  FROM orders x WHERE x.organization_id = o.id)
                 FROM organizations o WHERE o.id = ?""", String.class, organizationId);
+    }
+
+    /** A paid order of the seller, inserted directly: the isolation test needs one, not a whole purchase. */
+    private UUID paidOrder(UUID organizationId, UUID customerId, UUID productId) {
+        UUID checkoutId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        String address = "{\"recipientName\": \"Iso\", \"line1\": \"Street 1\", \"city\": \"Berlin\", \"countryCode\": \"DE\"}";
+        jdbc.update("INSERT INTO checkouts (id, customer_id, idempotency_key, total_minor, currency) VALUES (?, ?, ?, 1000, 'EUR')",
+                checkoutId, customerId, "iso-" + checkoutId);
+        jdbc.update("""
+                INSERT INTO orders (id, checkout_id, organization_id, seller_name, customer_id, status, currency, total_minor,
+                                    shipping_address, billing_address, paid_at)
+                VALUES (?, ?, ?, 'Shop', ?, 'PAID', 'EUR', 1000, ?::jsonb, ?::jsonb, now())""",
+                orderId, checkoutId, organizationId, customerId, address, address);
+        jdbc.update("INSERT INTO order_items (order_id, line_no, product_id, sku, name, unit_price_minor, quantity) "
+                + "VALUES (?, 0, ?, 'ISO-1', 'Target product', 1000, 1)", orderId, productId);
+        return orderId;
     }
 
     private String account(String name) {

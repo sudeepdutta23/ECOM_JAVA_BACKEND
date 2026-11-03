@@ -79,8 +79,8 @@ class LoginIT extends AbstractIntegrationTest {
                 .contains("HttpOnly").contains("Secure").contains("SameSite=Strict")
                 .contains("Path=/api/v1/auth").contains("Max-Age=604800");
 
-        // The access token gets past security (404 = routing ran, nothing mapped there yet).
-        assertThat(client.get("/api/v1/orders", AuthTestClient.accessToken(response)).getStatusCode())
+        // The access token gets past security (404 = routing ran; nothing is ever mapped there).
+        assertThat(client.get("/api/v1/security-probe", AuthTestClient.accessToken(response)).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
     }
 

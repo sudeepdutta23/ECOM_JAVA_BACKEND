@@ -18,6 +18,13 @@ public interface OrganizationRepository extends JpaRepository<Organization, UUID
     /** Served by {@code uk_organizations_slug}. Closed organisations keep their slug for good. */
     boolean existsBySlug(String slug);
 
+    /** Storefront: a seller by its public handle. Served by {@code uk_organizations_slug}. */
+    Optional<Organization> findBySlug(String slug);
+
+    /** The status with a FOR SHARE lock until commit, for checkout ({@code SellerDirectory.lockIfSelling}). */
+    @Query(value = "SELECT status FROM organizations WHERE id = :id FOR SHARE", nativeQuery = true)
+    Optional<String> lockStatus(@Param("id") UUID id);
+
     /** The platform's list, filtered by status. Served by {@code idx_organizations_status_id}. */
     Page<Organization> findByStatus(OrganizationStatus status, Pageable page);
 

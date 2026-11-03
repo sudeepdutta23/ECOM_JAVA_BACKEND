@@ -52,6 +52,7 @@ public class SecurityConfig {
 
     static final String[] PUBLIC_GET = {
             "/api/v1/system/ping",
+            "/api/v1/catalog/**",            // the storefront: browsing needs no account
             "/actuator/health", "/actuator/health/**", "/actuator/info",
             "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"
     };

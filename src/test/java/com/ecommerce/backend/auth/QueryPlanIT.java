@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Proves that every hot auth, rbac, user-admin, org and profile query uses the index designed for it.
+ * Proves that every hot auth, rbac, user-admin, org, profile, catalogue and order query uses the index designed for it.
  *
  * <p>Test tables hold only a few rows, and for tiny tables PostgreSQL correctly prefers a
  * sequential scan. {@code SET LOCAL enable_seqscan = off} (scoped to this transaction only)
@@ -90,7 +90,29 @@ class QueryPlanIT extends AbstractIntegrationTest {
             "address: count for the limit   | SELECT count(*) FROM user_addresses WHERE user_id = " + ID + "                     | idx_user_addresses_user_id",
             "address: one, scoped to owner  | SELECT * FROM user_addresses WHERE id = " + ID + " AND user_id = " + ID + "         | pk_user_addresses or idx_user_addresses_user_id",
             "address: clear default         | UPDATE user_addresses SET default_shipping = false, version = version + 1 WHERE user_id = " + ID + " AND default_shipping AND id <> " + ID + " | uk_user_addresses_default_shipping or idx_user_addresses_user_id",
-            "erase: delete addresses        | DELETE FROM user_addresses WHERE user_id = " + ID + "                              | idx_user_addresses_user_id"
+            "erase: delete addresses        | DELETE FROM user_addresses WHERE user_id = " + ID + "                              | idx_user_addresses_user_id",
+            // Phase 6: catalogue. The storefront pages are the hottest public queries.
+            "catalog: storefront, newest    | SELECT id FROM products WHERE status = 'ACTIVE' AND seller_active ORDER BY id DESC LIMIT 20 | idx_products_storefront",
+            "catalog: storefront, category  | SELECT id FROM products WHERE category_id = " + ID + " AND status = 'ACTIVE' AND seller_active ORDER BY id DESC LIMIT 20 | idx_products_category_id",
+            "catalog: storefront, seller    | SELECT id FROM products WHERE organization_id = " + ID + " AND status = 'ACTIVE' AND seller_active ORDER BY id DESC LIMIT 20 | idx_products_organization_id",
+            "catalog: seller's list, newest | SELECT id FROM products WHERE organization_id = " + ID + " ORDER BY id DESC LIMIT 20 | idx_products_organization_id",
+            "catalog: product of its seller | SELECT * FROM products WHERE id = " + ID + " AND organization_id = " + ID + " | pk_products or idx_products_organization_id",
+            "catalog: SKU taken?            | SELECT 1 FROM products WHERE organization_id = " + ID + " AND sku = 'MUG-1'        | uk_products_organization_sku",
+            "catalog: atomic stock change   | UPDATE products SET stock = stock - 1 WHERE id = " + ID + " AND organization_id = " + ID + " AND stock - 1 >= 0 | pk_products or idx_products_organization_id",
+            "catalog: seller status change  | UPDATE products SET seller_active = false WHERE organization_id = " + ID + " AND seller_active <> false | idx_products_organization_id",
+            "catalog: category in use?      | SELECT 1 FROM products WHERE category_id = " + ID + " LIMIT 1                     | idx_products_category_id",
+            "catalog: category by slug      | SELECT * FROM categories WHERE slug = 'books'                                      | uk_categories_slug",
+            "org: seller write, lock status | SELECT status FROM organizations WHERE id = " + ID + " FOR SHARE                   | pk_organizations",
+            // Phase 6: cart, checkout, orders.
+            "cart: my lines                 | SELECT * FROM cart_items WHERE user_id = " + ID + " ORDER BY added_at, product_id | pk_cart_items",
+            "cart: upsert a line            | SELECT 1 FROM cart_items WHERE user_id = " + ID + " AND product_id = " + ID + " | pk_cart_items or idx_cart_items_product_id",
+            "checkout: reserve stock        | UPDATE products SET stock = stock - 1 WHERE id = " + ID + " AND status = 'ACTIVE' AND seller_active AND stock >= 1 | pk_products or idx_products_storefront",
+            "checkout: idempotency key      | SELECT id FROM checkouts WHERE customer_id = " + ID + " AND idempotency_key = 'k-12345678' | uk_checkouts_customer_key",
+            "orders: my orders, newest      | SELECT id FROM orders WHERE customer_id = " + ID + " ORDER BY id DESC LIMIT 20     | idx_orders_customer_id",
+            "orders: seller's, by status    | SELECT id FROM orders WHERE organization_id = " + ID + " AND status = 'PAID' ORDER BY id DESC LIMIT 20 | idx_orders_organization_status or idx_orders_organization_id",
+            "orders: seller's, newest       | SELECT id FROM orders WHERE organization_id = " + ID + " ORDER BY id DESC LIMIT 20 | idx_orders_organization_id",
+            "orders: of a checkout          | SELECT id FROM orders WHERE checkout_id = " + ID + " ORDER BY id                   | idx_orders_checkout_id",
+            "orders: lines of an order      | SELECT * FROM order_items WHERE order_id = " + ID + " ORDER BY line_no            | pk_order_items"
     })
     void hotQueryUsesItsIndex(String name, String sql, String expectedIndex) {
         String plan = tx.execute(status -> {
@@ -159,15 +181,49 @@ class QueryPlanIT extends AbstractIntegrationTest {
                                             default_shipping, default_billing)
                 SELECT gen_random_uuid(), u.id, 'Plan', 'Street ' || g, 'Berlin', '10117', 'DE', g = 1, g = 1
                 FROM users u CROSS JOIN generate_series(1, 2) g WHERE u.email LIKE 'plan-%'""");
+        // Twenty categories, and three products per seller, most of them on sale.
+        jdbc.execute("""
+                INSERT INTO categories (id, slug, name)
+                SELECT gen_random_uuid(), 'plan-' || g, 'Plan ' || g FROM generate_series(1, 20) g""");
+        jdbc.execute("""
+                INSERT INTO products (id, organization_id, category_id, sku, name, price_minor, currency, stock, status, seller_active)
+                SELECT gen_random_uuid(), o.id, c.id, 'PLAN-' || g, 'Plan product', 1000, 'EUR', 10,
+                       CASE WHEN g = 3 THEN 'DRAFT' ELSE 'ACTIVE' END, o.status = 'ACTIVE'
+                FROM organizations o CROSS JOIN generate_series(1, 3) g
+                JOIN categories c ON c.slug = 'plan-' || (1 + abs(hashtext(o.id::text || g)) % 20)
+                WHERE o.slug LIKE 'plan-%'""");
+        // One checkout with one order per account that has a seller, plus a cart line for everyone.
+        jdbc.execute("""
+                INSERT INTO checkouts (id, customer_id, idempotency_key, total_minor, currency)
+                SELECT gen_random_uuid(), u.id, 'plan-' || substr(md5(u.id::text), 1, 20), 1000, 'EUR'
+                FROM users u WHERE u.email LIKE 'plan-%'""");
+        jdbc.execute("""
+                INSERT INTO orders (id, checkout_id, organization_id, seller_name, customer_id, status, currency, total_minor,
+                                    shipping_address, billing_address, paid_at)
+                SELECT gen_random_uuid(), c.id, o.id, 'Plan shop', c.customer_id,
+                       CASE WHEN row_number() OVER () % 3 = 0 THEN 'PAID' ELSE 'PENDING_PAYMENT' END, 'EUR', 1000,
+                       '{}'::jsonb, '{}'::jsonb, now()
+                FROM checkouts c JOIN organizations o ON o.created_by = c.customer_id
+                WHERE c.idempotency_key LIKE 'plan-%'""");
+        jdbc.execute("""
+                INSERT INTO cart_items (user_id, product_id, quantity)
+                SELECT DISTINCT ON (u.id) u.id, p.id, 1 FROM users u JOIN products p ON p.created_by IS NULL
+                WHERE u.email LIKE 'plan-%' AND p.sku = 'PLAN-1' AND p.organization_id IN (
+                    SELECT id FROM organizations WHERE slug LIKE 'plan-%' LIMIT 50)""");
         jdbc.execute("ANALYZE users, refresh_tokens, account_tokens, user_roles, organizations, organization_members, "
-                + "organization_invitations, user_profiles, user_addresses");
+                + "organization_invitations, user_profiles, user_addresses, categories, products, cart_items, checkouts, orders");
     }
 
     @AfterAll
     void removeVolume() {
+        jdbc.update("DELETE FROM orders WHERE checkout_id IN (SELECT id FROM checkouts WHERE idempotency_key LIKE 'plan-%')");
+        jdbc.update("DELETE FROM checkouts WHERE idempotency_key LIKE 'plan-%'");
+        jdbc.update("DELETE FROM cart_items WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'plan-%@plan.test')");
+        jdbc.update("DELETE FROM products WHERE organization_id IN (SELECT id FROM organizations WHERE slug LIKE 'plan-%')");
+        jdbc.update("DELETE FROM categories WHERE slug LIKE 'plan-%'");
         jdbc.update("DELETE FROM organizations WHERE slug LIKE 'plan-%'"); // cascades to members and invitations
         jdbc.update("DELETE FROM users WHERE email LIKE 'plan-%@plan.test'"); // cascades to tokens, roles, profiles, addresses
         jdbc.execute("ANALYZE users, refresh_tokens, account_tokens, user_roles, organizations, organization_members, "
-                + "organization_invitations, user_profiles, user_addresses");
+                + "organization_invitations, user_profiles, user_addresses, categories, products, cart_items, checkouts, orders");
     }
 }

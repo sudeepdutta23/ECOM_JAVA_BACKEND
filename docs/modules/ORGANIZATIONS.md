@@ -71,8 +71,10 @@ any status except CLOSED ──close (owner or platform)──> CLOSED (terminal
 | `ORGANIZATION_UPDATE` (name, settings) | yes | yes | |
 | `MEMBER_MANAGE` (invite, re-role, remove members ranked below you) | yes | yes | |
 | `ORGANIZATION_CLOSE` | yes | | |
+| `CATALOG_MANAGE` (products, prices, stock; Phase 6) | yes | yes | yes |
+| `ORDER_MANAGE` (ship, deliver, cancel orders; Phase 6) | yes | yes | yes |
 
-Phase 6 adds catalogue and order permissions; each role's set is defined in `OrgRole` and tested in `OrgRoleTest`.
+Each role's set is defined in `OrgRole` and tested in `OrgRoleTest`.
 
 **Fixed roles, not custom ones.** Three levels cover small and mid-size sellers, and every decision stays readable in one enum. Custom per-seller roles would need their own tables, an editor, and Phase 2's escalation rules once per seller. Checks only ask `role.grants(permission)`, so custom roles can come later without touching them.
 
@@ -149,13 +151,15 @@ Every seller-owned table (Phase 6: products, stock, orders) carries `organizatio
    - `TenantIsolationIT` reads every `{orgId}` operation from the live OpenAPI spec and calls each one as an outsider, with a valid body built from the schema examples: every answer must be the same 404 as for a nonexistent organisation, and a snapshot of the target seller must be unchanged. It then calls each operation with a child ID (`{userId}`, `{invitationId}`, later `{productId}`) as the owner of ANOTHER seller, through that seller's own path: 404 again (layer 3). Every path variable needs a fixture, a real ID of the target seller; a new variable fails the test until one is added, so it can never pass on random IDs. Removing the guard from one endpoint makes it fail (checked when it was written).
    - `ModuleBoundariesTest` (ArchUnit) keeps other modules away from org's entities and repositories, so the guard cannot be bypassed from outside.
 
-**What other modules may use.** The org module's public API is its root package (`OrgPermission`, `OrgRole`, `OrganizationStatus`, `OrgMembership`) and its services (`OrganizationGuard`). The JPA entities stay in `org.entity`, private to the module.
+**What other modules may use.** The org module's public API is its root package (`OrgPermission`, `OrgRole`, `OrganizationStatus`, `OrgMembership`, `MembershipSummary`, `SellerInfo`, `OrganizationStatusChanged`) and its services (`OrganizationGuard`, `SellerDirectory`).
+
+**Writes to seller data lock the organisation (Phase 6).** `OrganizationGuard.requireForSellerWrite` adds a FOR SHARE lock on the organisation row to the check, so a suspension waits for writes in progress and later writes see it. This closes the Phase 4 accepted risk "the guard is a check, not a lock" before anything is sold ([CATALOG.md](CATALOG.md#5-the-seller-lock-closes-a-phase-4-accepted-risk)). Every status change publishes `OrganizationStatusChanged` in its transaction ([ADR-013](../adr/ADR-013-in-transaction-module-events.md)). The JPA entities stay in `org.entity`, private to the module.
 
 **How to add a seller endpoint (Phase 6 checklist).**
 
 1. Path under `/api/v1/organizations/{orgId}/...`.
 2. Add the needed `OrgPermission` and grant it in `OrgRole` (`OrgRoleTest` documents the matrix).
-3. First line of the service method: `guard.require(orgId, userId, permission, Intent.READ or WRITE)`.
+3. First line of the service method: `guard.require(orgId, userId, permission, Intent.READ)` for reads, `guard.requireForSellerWrite(orgId, userId, permission)` for writes to seller data.
 4. Repository finders take `organizationId`; never `findById` on seller data.
 5. A new path variable gets a fixture in `TenantIsolationIT`.
 

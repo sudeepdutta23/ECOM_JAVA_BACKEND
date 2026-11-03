@@ -119,6 +119,34 @@ Send `X-Request-Id` (8 to 64 characters, letters, digits, `.`, `_`, `-`) to corr
 | PUT | `/api/v1/profile` | Bearer, active account | Replace `{givenName, familyName, phoneNumber, preferredLocale, timeZone, version}`; omitted fields are cleared; no `version` on the first save; 409 `CONCURRENT_MODIFICATION` |
 | GET | `/api/v1/auth/me/export` | Bearer | Download my data: account, roles, devices, organisations, profile, addresses; attachment, `no-store`; 5 per 15 min |
 | GET | `/api/v1/admin/users/{userId}/profile` | Bearer + `profile:read` | A customer's profile and addresses (support, read only); every view logged; 404 for unknown and erased |
+| GET | `/api/v1/catalog/products?category=&seller=&page=&size=` | Public | Products on sale (active sellers only), newest first; `inStock`, no stock counts |
+| GET | `/api/v1/catalog/products/{productId}` | Public | One product on sale; 404 for anything else |
+| GET | `/api/v1/catalog/categories` | Public | All categories, by name |
+| POST | `/api/v1/organizations/{orgId}/products` | Bearer, `CATALOG_MANAGE` | Create a DRAFT `{sku, name, description, price, categoryId}`; 201; 409 `CATALOG_SKU_TAKEN` |
+| GET | `/api/v1/organizations/{orgId}/products?status=&page=&size=` | Bearer, member | The shop's products with stock |
+| GET | `/api/v1/organizations/{orgId}/products/{productId}` | Bearer, member | One product |
+| PUT | `/api/v1/organizations/{orgId}/products/{productId}` | Bearer, `CATALOG_MANAGE` | Replace; `version` required |
+| POST | `/api/v1/organizations/{orgId}/products/{productId}/publish` | Bearer, `CATALOG_MANAGE` | On sale; 409 `CATALOG_INVALID_STATUS` if already |
+| POST | `/api/v1/organizations/{orgId}/products/{productId}/archive` | Bearer, `CATALOG_MANAGE` | Off sale |
+| POST | `/api/v1/organizations/{orgId}/products/{productId}/stock` | Bearer, `CATALOG_MANAGE` | `{delta}`; atomic; 409 `CATALOG_STOCK_INSUFFICIENT` below zero |
+| POST | `/api/v1/admin/categories` | Bearer + `catalog:manage` | Create `{slug, name}`; 409 `CATALOG_CATEGORY_SLUG_TAKEN` |
+| PUT | `/api/v1/admin/categories/{categoryId}` | Bearer + `catalog:manage` | Rename `{name, version}` |
+| DELETE | `/api/v1/admin/categories/{categoryId}` | Bearer + `catalog:manage` | 204; 409 `CATALOG_CATEGORY_IN_USE` |
+| GET | `/api/v1/cart` | Bearer | My cart at current prices; problem per line; `readyForCheckout` |
+| PUT | `/api/v1/cart/items/{productId}` | Bearer, active account | Set `{quantity}` 1 to 99; 404 if not on sale; 409 `ORDER_CART_FULL` |
+| DELETE | `/api/v1/cart/items/{productId}` | Bearer | Remove a line; idempotent |
+| DELETE | `/api/v1/cart` | Bearer | Empty; 204 |
+| POST | `/api/v1/checkout` | Bearer, `Idempotency-Key` | Buy the cart `{shippingAddressId, billingAddressId?, expectedTotal}`: one order per seller; 201; replay 200 `Idempotent-Replayed`; 409 `ORDER_CART_NOT_READY`, `ORDER_TOTAL_CHANGED`, `ORDER_OUT_OF_STOCK`, `ORDER_SELLER_NOT_SELLING` |
+| GET | `/api/v1/checkouts/{checkoutId}` | Bearer, its customer | A checkout with its orders |
+| POST | `/api/v1/checkouts/{checkoutId}/pay` | Bearer, its customer | `{paymentToken}` (provider token, never card data); idempotent; 402 `ORDER_PAYMENT_DECLINED` |
+| GET | `/api/v1/orders?page=&size=` | Bearer | My orders, newest first |
+| GET | `/api/v1/orders/{orderId}` | Bearer, its customer | With lines and address snapshots |
+| POST | `/api/v1/orders/{orderId}/cancel` | Bearer, its customer | `{reason?}`; before shipping; stock back, refund if paid |
+| GET | `/api/v1/organizations/{orgId}/orders?status=&page=&size=` | Bearer, member | The shop's orders |
+| GET | `/api/v1/organizations/{orgId}/orders/{orderId}` | Bearer, member | With the shipping address |
+| POST | `/api/v1/organizations/{orgId}/orders/{orderId}/ship` | Bearer, `ORDER_MANAGE` | `{trackingNumber?}`; PAID only; works while suspended |
+| POST | `/api/v1/organizations/{orgId}/orders/{orderId}/deliver` | Bearer, `ORDER_MANAGE` | SHIPPED only |
+| POST | `/api/v1/organizations/{orgId}/orders/{orderId}/cancel` | Bearer, `ORDER_MANAGE` | `{reason}` required; stock back, refund if paid |
 | GET | `/api/v1/profile/addresses` | Bearer | My addresses, newest first (at most 20, no paging) |
 | POST | `/api/v1/profile/addresses` | Bearer, active account | Save an address; the first becomes the default for both; 201 + Location; 400 country rules; 409 `PROFILE_ADDRESS_LIMIT` |
 | GET | `/api/v1/profile/addresses/{addressId}` | Bearer, owner | One address; 404 if not mine |

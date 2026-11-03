@@ -19,9 +19,9 @@ public enum OrgRole {
     OWNER(3, EnumSet.allOf(OrgPermission.class)),
     /** Runs the shop day to day and manages staff, but cannot close it or touch owners. */
     MANAGER(2, EnumSet.of(OrgPermission.ORGANIZATION_READ, OrgPermission.ORGANIZATION_UPDATE,
-            OrgPermission.MEMBER_MANAGE)),
-    /** Works in the shop (Phase 6: catalogue, orders); sees the organisation, changes nothing in it. */
-    STAFF(1, EnumSet.of(OrgPermission.ORGANIZATION_READ));
+            OrgPermission.MEMBER_MANAGE, OrgPermission.CATALOG_MANAGE, OrgPermission.ORDER_MANAGE)),
+    /** Works in the shop: catalogue and orders (Phase 6). Sees the organisation but cannot change it. */
+    STAFF(1, EnumSet.of(OrgPermission.ORGANIZATION_READ, OrgPermission.CATALOG_MANAGE, OrgPermission.ORDER_MANAGE));
 
     private final int rank;
     private final Set<OrgPermission> permissions;

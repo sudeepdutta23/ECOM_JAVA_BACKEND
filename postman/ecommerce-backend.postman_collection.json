@@ -972,6 +972,637 @@
       ]
     },
     {
+      "name": "Seller catalogue",
+      "description": "A seller's products. Any member reads; CATALOG_MANAGE (owner, manager, staff) changes. Writes are refused while the shop is suspended or closed. Run Organisations > Create first.",
+      "item": [
+        {
+          "name": "Create product",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products",
+            "description": "Starts as DRAFT without stock. 409 CATALOG_SKU_TAKEN.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"MUG-001\",\n  \"name\": \"Enamel mug, blue\",\n  \"description\": \"Hand-made, 350 ml.\",\n  \"price\": 19.99,\n  \"categoryId\": null\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('productId', pm.response.json().data.id);",
+                  "pm.environment.set('productVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List products",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products?page=0&size=20",
+            "description": "Newest first; ?status=DRAFT|ACTIVE|ARCHIVED."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get product",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products/{{productId}}",
+            "description": "With stock. Saves {{productVersion}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('productVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Replace product",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products/{{productId}}",
+            "description": "Send the version you read. Orders keep the old name and price.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"MUG-001\",\n  \"name\": \"Enamel mug, blue\",\n  \"description\": \"Hand-made, 350 ml.\",\n  \"price\": 19.99,\n  \"categoryId\": null,\n  \"version\": {{productVersion}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('productVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish product",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products/{{productId}}/publish",
+            "description": "On sale once the shop is approved and not suspended."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('productVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add stock",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products/{{productId}}/stock",
+            "description": "A change, not a total. Negative removes; 409 CATALOG_STOCK_INSUFFICIENT below zero.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delta\": 25\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('productVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Archive product",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/products/{{productId}}/archive",
+            "description": "Off sale; stays for order history."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('productVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Seller orders",
+      "description": "A seller fulfilling its orders. ORDER_MANAGE (owner, manager, staff); works while suspended.",
+      "item": [
+        {
+          "name": "Shop orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/orders?status=PAID&page=0&size=20",
+            "description": "Newest first; ?status= to filter."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Shop order",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/orders/{{orderId}}",
+            "description": "With the shipping address."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ship order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/orders/{{orderId}}/ship",
+            "description": "PAID only.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"1Z999AA10123456784\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark delivered",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/orders/{{orderId}}/deliver",
+            "description": "SHIPPED only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel order (seller)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/organizations/{{orgId}}/orders/{{orderId}}/cancel",
+            "description": "A reason is required; the customer sees it.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Out of stock at the warehouse\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Storefront",
+      "description": "Public: no token needed. Only ACTIVE products of approved, active sellers.",
+      "item": [
+        {
+          "name": "Browse products",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/catalog/products?page=0&size=20",
+            "description": "Newest first; ?category={slug}, ?seller={slug}. No stock count, only inStock.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Product on sale",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/catalog/products/{{productId}}",
+            "description": "404 for anything not on sale, like an unknown ID.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": []
+              }
+            }
+          ]
+        },
+        {
+          "name": "Categories",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/catalog/categories",
+            "description": "All, by name.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "description": "The signed-in customer's cart: products of any number of sellers, at current prices. Quantities only; checkout confirms the total.",
+      "item": [
+        {
+          "name": "View cart",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/cart",
+            "description": "Lines that cannot be bought now carry a problem (NOT_ON_SALE, NOT_ENOUGH_STOCK) and are not in the total."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('cartTotal', pm.response.json().data.total);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set quantity",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/cart/items/{{productId}}",
+            "description": "Sets (not adds) the quantity, 1 to 99. 404 if the product is not on sale; 409 ORDER_CART_FULL at 50 lines.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove line",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/cart/items/{{productId}}",
+            "description": "Idempotent."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Empty cart",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/cart",
+            "description": "204."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Checkout",
+      "description": "Buy the cart: one order per seller. Run Profile > Create address and Cart > Set quantity first.",
+      "item": [
+        {
+          "name": "Check out",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/checkout",
+            "description": "A new Idempotency-Key per purchase (the pre-request script makes one); a retry with the same key returns the same checkout. expectedTotal is the total from View cart.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shippingAddressId\": \"{{addressId}}\",\n  \"expectedTotal\": {{cartTotal}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('idempotencyKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('checkoutId', pm.response.json().data.id);",
+                  "pm.environment.set('orderId', pm.response.json().data.orders[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get checkout",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/checkouts/{{checkoutId}}",
+            "description": "404 if it is not yours."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pay checkout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/checkouts/{{checkoutId}}/pay",
+            "description": "Provider token only, never card data. The simulator declines tok_decline (402). Idempotent.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentToken\": \"tok_visa\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "description": "The signed-in customer's orders.",
+      "item": [
+        {
+          "name": "My orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/orders?page=0&size=20",
+            "description": "Newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My order",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+            "description": "With lines and addresses as at checkout."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel my order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}/cancel",
+            "description": "Before shipping only. Stock goes back; a paid order is refunded.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Changed my mind\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Administration: roles and permissions",
       "item": [
         {
@@ -1488,6 +2119,92 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Administration: catalogue",
+      "description": "Platform staff with catalog:manage curate the categories.",
+      "item": [
+        {
+          "name": "Create category",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/categories",
+            "description": "409 CATALOG_CATEGORY_SLUG_TAKEN.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"kitchen\",\n  \"name\": \"Kitchen\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('categoryId', pm.response.json().data.id);",
+                  "pm.environment.set('categoryVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rename category",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/admin/categories/{{categoryId}}",
+            "description": "The slug never changes.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Kitchen and dining\",\n  \"version\": {{categoryVersion}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('categoryVersion', pm.response.json().data.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete category",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/admin/categories/{{categoryId}}",
+            "description": "204; 409 CATALOG_CATEGORY_IN_USE while products use it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
                 ]
               }
             }

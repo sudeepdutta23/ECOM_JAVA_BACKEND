@@ -31,7 +31,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /** Refresh rotation, theft detection, logout and logout-all over real HTTP. */
 class SessionIT extends AbstractIntegrationTest {
 
-    private static final String PROTECTED = "/api/v1/orders";
+    /** Authenticated but unmapped: 404 proves the token was accepted. Never give this path an endpoint. */
+    private static final String PROTECTED = "/api/v1/security-probe";
 
     @Autowired
     private TestRestTemplate rest;

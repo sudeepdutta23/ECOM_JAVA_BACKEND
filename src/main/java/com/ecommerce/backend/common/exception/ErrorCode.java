@@ -61,7 +61,23 @@ public enum ErrorCode {
     ORG_CONFLICT_OF_INTEREST(HttpStatus.FORBIDDEN, "Not allowed on an organisation you belong to"),
 
     // ----- Profile (Phase 5) -----
-    PROFILE_ADDRESS_LIMIT(HttpStatus.CONFLICT, "Address book is full");
+    PROFILE_ADDRESS_LIMIT(HttpStatus.CONFLICT, "Address book is full"),
+
+    // ----- Catalogue (Phase 6) -----
+    CATALOG_SKU_TAKEN(HttpStatus.CONFLICT, "SKU already used by this seller"),
+    CATALOG_CATEGORY_SLUG_TAKEN(HttpStatus.CONFLICT, "Category slug already taken"),
+    CATALOG_CATEGORY_IN_USE(HttpStatus.CONFLICT, "Category still has products"),
+    CATALOG_INVALID_STATUS(HttpStatus.CONFLICT, "Not allowed in the product's current status"),
+    CATALOG_STOCK_INSUFFICIENT(HttpStatus.CONFLICT, "Not enough stock"),
+
+    // ----- Orders (Phase 6) -----
+    ORDER_CART_FULL(HttpStatus.CONFLICT, "Cart is full"),
+    ORDER_CART_NOT_READY(HttpStatus.CONFLICT, "Cart cannot be checked out as it is"),
+    ORDER_TOTAL_CHANGED(HttpStatus.CONFLICT, "Prices changed since you looked"),
+    ORDER_OUT_OF_STOCK(HttpStatus.CONFLICT, "A product sold out"),
+    ORDER_SELLER_NOT_SELLING(HttpStatus.CONFLICT, "A seller stopped selling"),
+    ORDER_INVALID_STATUS(HttpStatus.CONFLICT, "Not allowed in the order's current status"),
+    ORDER_PAYMENT_DECLINED(HttpStatus.PAYMENT_REQUIRED, "Payment declined");
 
     private final HttpStatus status;
     private final String title;

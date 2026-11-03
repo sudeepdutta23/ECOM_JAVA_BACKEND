@@ -48,6 +48,15 @@ public class ProfileReader {
     }
 
     /**
+     * One of the person's own addresses, for checkout to copy into an order. Empty for an address
+     * of someone else, exactly like an unknown one.
+     */
+    @Transactional(readOnly = true)
+    public Optional<PersonalProfile.Address> address(UUID userId, UUID addressId) {
+        return addresses.findByIdAndUserId(addressId, userId).map(ProfileReader::toAddress);
+    }
+
+    /**
      * A customer's data for support staff. Unknown and erased accounts are 404: there is nothing to
      * see, and the answer does not tell erased apart from never existing.
      *

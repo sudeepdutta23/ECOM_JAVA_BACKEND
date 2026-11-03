@@ -137,6 +137,14 @@ Set `app.security.password-hashing.max-concurrent` and `app.auth.failed-login-mi
 - `GET /api/v1/auth/me/export` gives a person all their data, without password or token hashes, as an uncached download, rate limited.
 - Every write of personal data first locks the account row FOR SHARE, so it cannot outlive an erasure ([modules/PROFILE.md](modules/PROFILE.md)).
 
+## Money and orders (Phase 6)
+
+- The server never accepts a price or a total from the client; `expectedTotal` only confirms what the customer saw.
+- Card data never reaches the server: the client sends a payment provider token. Tokens are never logged.
+- One unit is sold at most once (conditional UPDATE under row lock); one purchase per Idempotency-Key; one charge per checkout.
+- A suspended seller sells nothing: the catalogue and checkout lock the seller's row ([modules/CATALOG.md](modules/CATALOG.md#5-the-seller-lock-closes-a-phase-4-accepted-risk)).
+- Production requires a real payment provider (`PAYMENT_PROVIDER`); the simulator exists only in dev and test.
+
 ## Never log
 
 Passwords, password hashes, JWTs, refresh tokens, reset tokens, secrets, full card or ID numbers. Personal data: emails, names, phone numbers, addresses (log the user ID instead; entities and DTOs that hold such data override `toString`).

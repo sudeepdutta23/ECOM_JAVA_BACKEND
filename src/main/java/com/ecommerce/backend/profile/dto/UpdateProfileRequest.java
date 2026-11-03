@@ -1,5 +1,6 @@
 package com.ecommerce.backend.profile.dto;
 
+import com.ecommerce.backend.common.validation.Inputs;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
