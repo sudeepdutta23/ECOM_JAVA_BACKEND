@@ -203,6 +203,16 @@ app:
   order:
     # Different products per cart: bounds the cart view (no paging) and the size of one checkout.
     max-cart-lines: 50
+    # Unpaid orders are cancelled after this, and their stock goes back on sale (Phase 12).
+    payment-timeout: 30m
+
+  # Background jobs (Phase 12). Each runs on one server at a time (ShedLock); false stops them all.
+  jobs:
+    enabled: ${JOBS_ENABLED:true}
+    unpaid-orders-interval: PT1M
+    cleanup-interval: PT1H
+    # Notifications older than this are deleted.
+    notification-retention: 90d
 
   profile:
     # Saved addresses per account: enough for any household; bounds the list (no paging).

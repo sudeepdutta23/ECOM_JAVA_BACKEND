@@ -100,7 +100,7 @@ public class SellerOrderService {
         if (reason == null) {
             throw RequestValidationException.of("reason", "is required: the customer is told why");
         }
-        cancellation.cancel(order, userId, reason, false);
+        cancellation.cancel(order, userId, reason, OrderEvent.Canceller.SELLER);
         log.info("Order cancelled by the seller: organizationId={}, orderId={}, by={}", organizationId, orderId, userId);
         return OrderResponse.from(order);
     }

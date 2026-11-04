@@ -34,8 +34,15 @@ public sealed interface OrderEvent {
     record Delivered(UUID orderId, UUID organizationId, UUID customerId, String sellerName) implements OrderEvent {
     }
 
-    /** @param byCustomer whether the customer cancelled (else the seller did); the other side is told */
-    record Cancelled(UUID orderId, UUID organizationId, UUID customerId, String sellerName, boolean byCustomer,
+    /** Who cancelled an order; decides who is told and how. */
+    enum Canceller {
+        CUSTOMER,
+        SELLER,
+        /** The platform: not paid in time (Phase 12). */
+        SYSTEM
+    }
+
+    record Cancelled(UUID orderId, UUID organizationId, UUID customerId, String sellerName, Canceller by,
                      boolean refunded) implements OrderEvent {
     }
 }

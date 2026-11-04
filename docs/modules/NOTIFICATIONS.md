@@ -78,4 +78,4 @@ The in-app write joins the order's transaction deliberately: if the database can
 | `idx_notifications_user_id (user_id, id)` | The inbox, newest first |
 | `idx_notifications_unread (user_id) WHERE read_at IS NULL` | The unread badge |
 
-**Retention.** Notifications older than 90 days are deleted by a job (Phase 12).
+**Retention.** Notifications older than 90 days are deleted by `NotificationRetention` ([JOBS.md](JOBS.md)).

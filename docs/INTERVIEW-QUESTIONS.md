@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-237 questions so far.
+245 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -24,6 +24,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 9: Audit](#phase-9-audit) | 8 | [modules/AUDIT.md](modules/AUDIT.md) |
 | [Phase 10: Search, filtering, pagination](#phase-10-search-filtering-pagination) | 8 | [modules/SEARCH.md](modules/SEARCH.md) |
 | [Phase 11: Redis](#phase-11-redis) | 8 | [modules/REDIS.md](modules/REDIS.md) |
+| [Phase 12: Background jobs](#phase-12-background-jobs) | 8 | [modules/JOBS.md](modules/JOBS.md) |
 
 ## Phase 0: Setup
 
@@ -429,4 +430,19 @@ Design: [modules/REDIS.md](modules/REDIS.md).
 6. Why can a product page with a stale stock flag be cached safely in this design?
 7. Why run Redis without persistence here, and what would change if it held sessions or queues?
 8. Why an explicit read-through helper instead of `@Cacheable` for two cached reads?
+
+## Phase 12: Background jobs
+
+Design: [modules/JOBS.md](modules/JOBS.md).
+
+### Steps 12.1 and 12.2: Jobs and review
+
+1. With three servers, why would a plain `@Scheduled` job run three times, and how does ShedLock prevent it?
+2. Why should the lock use database time rather than each server's clock?
+3. What are `lockAtMostFor` and `lockAtLeastFor` for, and what happens if a server dies while holding a lock?
+4. Why process unpaid orders one per transaction instead of one transaction for the whole batch?
+5. A customer pays at the moment the job cancels the same order. Walk through who wins and why nothing breaks.
+6. Why delete old rows in batches of a thousand instead of one DELETE?
+7. Why should each job's query have its own (often partial) index?
+8. Why are jobs switched off in tests, and how are they tested then?
 

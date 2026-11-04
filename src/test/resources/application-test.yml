@@ -12,6 +12,9 @@ spring:
         format_sql: false
 
 app:
+  # Tests call the jobs directly; nothing runs on a timer.
+  jobs:
+    enabled: false
   payment:
     provider: simulated
   cors:

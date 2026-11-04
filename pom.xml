@@ -30,6 +30,7 @@
         <!-- Overrides the Boot-managed 1.21.3, which cannot talk to Docker Engine 29+ (HTTP 400 on /info) -->
         <testcontainers.version>1.21.4</testcontainers.version>
         <archunit.version>1.4.1</archunit.version>
+        <shedlock.version>5.16.0</shedlock.version>
         <!-- Empty default, so @{argLine} resolves when no other plugin (JaCoCo, Phase 17) sets it -->
         <argLine/>
     </properties>
@@ -78,6 +79,18 @@
             <groupId>com.bucket4j</groupId>
             <artifactId>bucket4j_jdk17-lettuce</artifactId>
             <version>${bucket4j.version}</version>
+        </dependency>
+
+        <!-- ===== Background jobs (Phase 12): one server runs each job, via a lock row in PostgreSQL ===== -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>${shedlock.version}</version>
         </dependency>
 
         <!-- ===== Redis (Phase 11): shared rate limits and a read cache ===== -->

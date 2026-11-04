@@ -24,6 +24,7 @@ import com.ecommerce.backend.org.SellerInfo;
 import com.ecommerce.backend.org.service.SellerDirectory;
 import com.ecommerce.backend.rbac.service.UserDirectory;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -46,7 +47,7 @@ class CartServiceTest {
     private final SellerDirectory sellers = mock(SellerDirectory.class);
     private final UserDirectory users = mock(UserDirectory.class);
     private final CartService service = new CartService(items, catalog, sellers, users, new CatalogProperties("EUR"),
-            new OrderProperties(2), Clock.fixed(NOW, ZoneOffset.UTC));
+            new OrderProperties(2, Duration.ofMinutes(30)), Clock.fixed(NOW, ZoneOffset.UTC));
 
     private final List<CartItem> lines = new ArrayList<>();
     private final Map<UUID, ProductSnapshot> products = new HashMap<>();

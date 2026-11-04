@@ -2,6 +2,7 @@ package com.ecommerce.backend.order.repository;
 
 import com.ecommerce.backend.order.OrderStatus;
 import com.ecommerce.backend.order.entity.SalesOrder;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,6 +53,16 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from SalesOrder o where o.id = :id and o.organizationId = :organizationId")
     Optional<SalesOrder> lockForSeller(@Param("id") UUID id, @Param("organizationId") UUID organizationId);
+
+    /** The expiry job: unpaid orders, oldest first. Served by the partial {@code idx_orders_pending_payment}. */
+    @Query("select o.id from SalesOrder o where o.status = com.ecommerce.backend.order.OrderStatus.PENDING_PAYMENT "
+            + "and o.createdAt < :cutoff order by o.createdAt")
+    List<UUID> findUnpaidCreatedBefore(@Param("cutoff") Instant cutoff, Pageable page);
+
+    /** The expiry job locks one order at a time and checks it again. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from SalesOrder o where o.id = :id")
+    Optional<SalesOrder> lockById(@Param("id") UUID id);
 
     /** Payment: every order of the checkout, in ID order (the same order for every caller). */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

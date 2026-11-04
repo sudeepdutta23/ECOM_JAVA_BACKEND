@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Proves that every hot auth, rbac, user-admin, org, profile, catalogue, order, notification, file, audit and search query uses the index designed for it.
+ * Proves that every hot auth, rbac, user-admin, org, profile, catalogue, order, notification, file, audit, search and job query uses the index designed for it.
  *
  * <p>Test tables hold only a few rows, and for tiny tables PostgreSQL correctly prefers a
  * sequential scan. {@code SET LOCAL enable_seqscan = off} (scoped to this transaction only)
@@ -125,7 +125,11 @@ class QueryPlanIT extends AbstractIntegrationTest {
             "audit: everything, keyset      | SELECT id FROM audit_events WHERE id < " + ID + " ORDER BY id DESC LIMIT 21 | pk_audit_events",
             // Phase 10: storefront search and price sorting.
             "search: full text on sale      | SELECT id FROM products WHERE status = 'ACTIVE' AND seller_active AND search_vector @@ websearch_to_tsquery('simple', 'plan') | idx_products_search",
-            "search: cheapest first         | SELECT id FROM products WHERE status = 'ACTIVE' AND seller_active ORDER BY price_minor, id LIMIT 20 | idx_products_storefront_price"
+            "search: cheapest first         | SELECT id FROM products WHERE status = 'ACTIVE' AND seller_active ORDER BY price_minor, id LIMIT 20 | idx_products_storefront_price",
+            // Phase 12: what each background job reads, so a round never scans a growing table.
+            "job: unpaid orders, oldest     | SELECT id FROM orders WHERE status = 'PENDING_PAYMENT' AND created_at < now() ORDER BY created_at LIMIT 200 | idx_orders_pending_payment",
+            "job: expired refresh tokens    | SELECT id FROM refresh_tokens WHERE expires_at < now() LIMIT 1000 | idx_refresh_tokens_expires_at",
+            "job: old notifications         | SELECT id FROM notifications WHERE created_at < now() LIMIT 1000 | idx_notifications_created_at"
     })
     void hotQueryUsesItsIndex(String name, String sql, String expectedIndex) {
         String plan = tx.execute(status -> {

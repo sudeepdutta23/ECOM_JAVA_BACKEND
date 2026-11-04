@@ -31,9 +31,9 @@ class OrderMessagesTest {
     @Test
     void cancellationsTellTheOtherSide() {
         List<OrderMessages.Message> bySeller = OrderMessages.render(
-                new OrderEvent.Cancelled(ORDER, SELLER, CUSTOMER, "Acme", false, true), CUSTOMER, STAFF);
+                new OrderEvent.Cancelled(ORDER, SELLER, CUSTOMER, "Acme", OrderEvent.Canceller.SELLER, true), CUSTOMER, STAFF);
         List<OrderMessages.Message> byCustomer = OrderMessages.render(
-                new OrderEvent.Cancelled(ORDER, SELLER, CUSTOMER, "Acme", true, false), CUSTOMER, STAFF);
+                new OrderEvent.Cancelled(ORDER, SELLER, CUSTOMER, "Acme", OrderEvent.Canceller.CUSTOMER, false), CUSTOMER, STAFF);
 
         assertThat(bySeller).singleElement().satisfies(m -> {
             assertThat(m.recipient()).isEqualTo(CUSTOMER);
@@ -59,5 +59,16 @@ class OrderMessagesTest {
                 .get(0).body()).doesNotContain("Tracking");
         assertThat(OrderMessages.render(new OrderEvent.Delivered(ORDER, SELLER, CUSTOMER, "Acme"), CUSTOMER, STAFF))
                 .singleElement().satisfies(m -> assertThat(m.email()).isFalse());
+    }
+
+    @Test
+    void anOrderThePlatformCancelledForNonPaymentTellsOnlyTheCustomer() {
+        List<OrderMessages.Message> messages = OrderMessages.render(
+                new OrderEvent.Cancelled(ORDER, SELLER, CUSTOMER, "Acme", OrderEvent.Canceller.SYSTEM, false), CUSTOMER, STAFF);
+
+        assertThat(messages).singleElement().satisfies(m -> {
+            assertThat(m.type()).isEqualTo(NotificationType.ORDER_EXPIRED);
+            assertThat(m.body()).contains("not paid in time");
+        });
     }
 }

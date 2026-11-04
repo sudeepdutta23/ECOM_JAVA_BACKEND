@@ -206,6 +206,10 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 
 `products.search_vector`: a generated `tsvector` (name weight A, description weight B, `simple` configuration), maintained by PostgreSQL itself. `idx_products_search` (GIN) and `idx_products_storefront_price (price_minor, id)`, both partial over what is on sale. Details: [modules/SEARCH.md](modules/SEARCH.md).
 
+## Phase 12 changes (V20, V21, jobs)
+
+`shedlock`: one lock row per scheduled job. V21 adds the `ORDER_EXPIRED` notification type and the indexes the jobs read: `idx_orders_pending_payment (created_at) WHERE status = 'PENDING_PAYMENT'`, `idx_notifications_created_at`, `idx_account_tokens_consumed_at`. Details: [modules/JOBS.md](modules/JOBS.md).
+
 ## Migration history
 
 | Version | Description |
@@ -229,3 +233,5 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 | V17 | product_images |
 | V18 | audit_events (append-only trigger); `audit:read` for ADMIN |
 | V19 | products.search_vector (generated), GIN search index, price index |
+| V20 | shedlock (job locks) |
+| V21 | `ORDER_EXPIRED` notification type; indexes for the jobs |

@@ -120,3 +120,4 @@ It found one violation when it was introduced: `PermissionController` read its r
 | Time | Injected `Clock` bean, always UTC |
 | Schema | Flyway migrations; Hibernate only validates |
 | Health | Spring Boot Actuator |
+| Background jobs | `@Scheduled` + ShedLock (one server per round), small batches, short transactions ([modules/JOBS.md](modules/JOBS.md)) |

@@ -75,7 +75,7 @@ Each status has its own timestamp (`paid_at`, `shipped_at`, ...), and CHECK cons
 - **`PaymentGateway` port** with `charge` and `refund`. `SimulatedPaymentGateway` approves everything except `tok_decline`, like real test tokens. It exists only where `app.payment.provider=simulated` (dev, test). Production requires `PAYMENT_PROVIDER`; without a real gateway it does not start.
 - **Never twice.** The checkout row is locked first, so two "pay" clicks cannot both charge; the charge carries the checkout ID as the provider's idempotency key, so a retry after a timeout cannot charge twice either. Paying a paid checkout returns it.
 - **Declined: 402 `ORDER_PAYMENT_DECLINED`**, nothing changes, the customer can retry.
-- **Accepted for now:** the simulated charge runs inside the transaction. A real provider is called outside it, and a webhook confirms the payment (Phases 12 and 13): holding row locks during a network call would let a slow provider block checkouts. Unpaid orders keep their reserved stock until a job releases them (Phase 12).
+- **Accepted for now:** the simulated charge runs inside the transaction. A real provider is called outside it, and a webhook confirms the payment (Phases 12 and 13): holding row locks during a network call would let a slow provider block checkouts. Unpaid orders are cancelled after `app.order.payment-timeout` (30 minutes) by `UnpaidOrderExpiry`, and their stock goes back on sale ([JOBS.md](JOBS.md)).
 
 **Customers** (`/api/v1/orders`): their list (newest first, summaries only), one order with lines and addresses, and cancel before shipping.
 

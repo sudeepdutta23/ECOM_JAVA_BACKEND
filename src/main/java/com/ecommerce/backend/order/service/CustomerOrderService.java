@@ -2,6 +2,7 @@ package com.ecommerce.backend.order.service;
 
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
 import com.ecommerce.backend.common.response.PageResponse;
+import com.ecommerce.backend.order.OrderEvent;
 import com.ecommerce.backend.order.dto.OrderResponse;
 import com.ecommerce.backend.order.dto.OrderSummary;
 import com.ecommerce.backend.order.entity.SalesOrder;
@@ -44,7 +45,7 @@ public class CustomerOrderService {
     @Transactional
     public OrderResponse cancel(UUID userId, UUID orderId, String reason) {
         SalesOrder order = orders.lockForCustomer(orderId, userId).orElseThrow(() -> new ResourceNotFoundException("Order"));
-        cancellation.cancel(order, userId, reason, true);
+        cancellation.cancel(order, userId, reason, OrderEvent.Canceller.CUSTOMER);
         log.info("Order cancelled by the customer: orderId={}, userId={}", orderId, userId);
         return OrderResponse.from(order);
     }

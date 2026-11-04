@@ -42,7 +42,7 @@ class OrderCancellation {
 
     /** @param order locked by the caller, so a parallel shipment or cancellation waits */
     @Transactional(propagation = Propagation.MANDATORY)
-    void cancel(SalesOrder order, UUID by, String reason, boolean byCustomer) {
+    void cancel(SalesOrder order, UUID by, String reason, OrderEvent.Canceller canceller) {
         if (!order.getStatus().isCancellable()) {
             throw new BusinessException(ErrorCode.ORDER_INVALID_STATUS, "This order is " + order.getStatus()
                     + " and can no longer be cancelled.");
@@ -57,6 +57,6 @@ class OrderCancellation {
             gateway.refund(checkout.getPaymentReference(), order.getTotalMinor(), order.getCurrency());
         }
         events.publishEvent(new OrderEvent.Cancelled(order.getId(), order.getOrganizationId(), order.getCustomerId(),
-                order.getSellerName(), byCustomer, wasPaid));
+                order.getSellerName(), canceller, wasPaid));
     }
 }

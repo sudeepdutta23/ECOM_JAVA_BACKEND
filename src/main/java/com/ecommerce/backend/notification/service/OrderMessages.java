@@ -59,11 +59,18 @@ final class OrderMessages {
                 }
             }
             case OrderEvent.Cancelled cancelled -> {
-                if (cancelled.byCustomer()) {
+                if (cancelled.by() == OrderEvent.Canceller.CUSTOMER) {
                     sellerMembers.forEach(member -> messages.add(new Message(member, Audience.SELLER,
                             NotificationType.ORDER_CANCELLED_BY_CUSTOMER, "An order was cancelled",
                             "The customer cancelled an order before it shipped. Its units are back in stock.",
                             sellerLink, false)));
+                } else if (cancelled.by() == OrderEvent.Canceller.SYSTEM) {
+                    if (customer != null) {
+                        messages.add(new Message(customer, Audience.CUSTOMER, NotificationType.ORDER_EXPIRED,
+                                "Your order was cancelled", "Your order from " + cancelled.sellerName()
+                                + " was not paid in time, so it was cancelled and its items released.",
+                                customerLink, true));
+                    }
                 } else if (customer != null) {
                     String refund = cancelled.refunded() ? " Your payment is being refunded." : "";
                     messages.add(new Message(customer, Audience.CUSTOMER, NotificationType.ORDER_CANCELLED_BY_SELLER,
