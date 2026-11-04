@@ -118,6 +118,11 @@ public class SecurityConfig {
         return http.build();
     }
 
+    @Bean
+    public ManagementPort managementPort() {
+        return new ManagementPort();
+    }
+
     /**
      * Which browser origins may call the API from JavaScript.
      *

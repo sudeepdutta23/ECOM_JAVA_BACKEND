@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.boot.web.context.WebServerInitializedEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.security.web.util.matcher.RequestMatcher;
-import org.springframework.stereotype.Component;
 
 /**
  * The port of the separate management server ({@code management.server.port}), once it started.
@@ -13,8 +12,10 @@ import org.springframework.stereotype.Component;
  * Prometheus, inside the network, reaches it. {@link #matcher()} lets the security rules open the
  * metrics scrape on that port alone. Without a separate port (dev, tests) it matches nothing, so the
  * scrape is never reachable on the public port.
+ *
+ * <p>A bean of {@link SecurityConfig}, so every context with the security rules (controller test
+ * slices included) has it.
  */
-@Component
 public class ManagementPort implements ApplicationListener<WebServerInitializedEvent> {
 
     static final String NAMESPACE = "management";
