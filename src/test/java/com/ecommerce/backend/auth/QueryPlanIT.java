@@ -124,7 +124,7 @@ class QueryPlanIT extends AbstractIntegrationTest {
             "audit: by organisation         | SELECT id FROM audit_events WHERE organization_id = " + ID + " ORDER BY id DESC LIMIT 21 | idx_audit_events_organization",
             "audit: everything, keyset      | SELECT id FROM audit_events WHERE id < " + ID + " ORDER BY id DESC LIMIT 21 | pk_audit_events",
             // Phase 10: storefront search and price sorting.
-            "search: full text on sale      | SELECT id FROM products WHERE status = 'ACTIVE' AND seller_active AND search_vector @@ websearch_to_tsquery('simple', 'plan') | idx_products_search",
+            "search: full text on sale      | SELECT id FROM products WHERE status = 'ACTIVE' AND seller_active AND search_vector @@ websearch_to_tsquery('simple', 'lantern') | idx_products_search",
             "search: cheapest first         | SELECT id FROM products WHERE status = 'ACTIVE' AND seller_active ORDER BY price_minor, id LIMIT 20 | idx_products_storefront_price",
             // Phase 12: what each background job reads, so a round never scans a growing table.
             "job: unpaid orders, oldest     | SELECT id FROM orders WHERE status = 'PENDING_PAYMENT' AND created_at < now() ORDER BY created_at LIMIT 200 | idx_orders_pending_payment",
@@ -207,7 +207,11 @@ class QueryPlanIT extends AbstractIntegrationTest {
                 SELECT gen_random_uuid(), 'plan-' || g, 'Plan ' || g FROM generate_series(1, 20) g""");
         jdbc.execute("""
                 INSERT INTO products (id, organization_id, category_id, sku, name, price_minor, currency, stock, status, seller_active)
-                SELECT gen_random_uuid(), o.id, c.id, 'PLAN-' || g, 'Plan product', 1000, 'EUR', 10,
+                -- About 1 in 100 has a rare name: the full-text plan below searches for it, because a real search
+                -- term is selective. A term every product contains is rightly answered without the GIN index.
+                SELECT gen_random_uuid(), o.id, c.id, 'PLAN-' || g,
+                       CASE WHEN abs(hashtext(o.id::text || g)) % 100 = 0 THEN 'Brass lantern' ELSE 'Plan product' END,
+                       1000, 'EUR', 10,
                        CASE WHEN g = 3 THEN 'DRAFT' ELSE 'ACTIVE' END, o.status = 'ACTIVE'
                 FROM organizations o CROSS JOIN generate_series(1, 3) g
                 JOIN categories c ON c.slug = 'plan-' || (1 + abs(hashtext(o.id::text || g)) % 20)

@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -89,6 +91,37 @@ class CatalogCacheIT extends AbstractIntegrationTest {
 
         assertThat(redis.hasKey("cache:categories")).as("evicted after the commit").isFalse();
         assertThat(rest.getForEntity("/api/v1/catalog/categories", String.class).getBody()).contains(categorySlug);
+    }
+
+    /** Browsers and CDNs may keep the list briefly, then revalidate it for a bodiless 304. */
+    @Test
+    void theCategoryListIsHttpCacheableAndRevalidatesWithItsEtag() {
+        ResponseEntity<String> first = rest.getForEntity("/api/v1/catalog/categories", String.class);
+        String etag = first.getHeaders().getETag();
+        assertThat(first.getHeaders().getCacheControl()).isEqualTo("max-age=300, public");
+        assertThat(etag).startsWith("\"").endsWith("\"");
+
+        HttpHeaders revalidate = new HttpHeaders();
+        revalidate.setIfNoneMatch(etag);
+        ResponseEntity<String> unchanged = rest.exchange("/api/v1/catalog/categories", HttpMethod.GET,
+                new HttpEntity<>(revalidate), String.class);
+        assertThat(unchanged.getStatusCode()).isEqualTo(HttpStatus.NOT_MODIFIED);
+        assertThat(unchanged.getBody()).isNull();
+        assertThat(unchanged.getHeaders().getETag()).isEqualTo(etag);
+
+        categorySlug = "it-cache-" + UUID.randomUUID().toString().substring(0, 8);
+        data(client.postJson("/api/v1/admin/categories", Map.of("slug", categorySlug, "name", "Revalidated"), adminToken), "id");
+        ResponseEntity<String> changed = rest.exchange("/api/v1/catalog/categories", HttpMethod.GET,
+                new HttpEntity<>(revalidate), String.class);
+        assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(changed.getHeaders().getETag()).isNotEqualTo(etag);
+        assertThat(changed.getBody()).contains(categorySlug);
+    }
+
+    @Test
+    void personalReadsAreNeverMarkedPublic() {
+        ResponseEntity<String> cart = client.send(HttpMethod.GET, "/api/v1/cart", null, adminToken);
+        assertThat(cart.getHeaders().getCacheControl()).contains("no-store");
     }
 
     @Test

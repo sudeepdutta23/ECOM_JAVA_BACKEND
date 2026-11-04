@@ -16,6 +16,7 @@ PostgreSQL 17, the same image in development (Docker Compose) and tests (Testcon
 2. Never edit a migration that has run anywhere. Write a new one.
 3. One logical change per migration.
 4. Large tables get `CREATE INDEX CONCURRENTLY` in a separate, non-transactional migration.
+5. Every connection has `statement_timeout = 15s` (Phase 15). A migration that needs longer starts with `SET LOCAL statement_timeout = 0`, which ends with its transaction; a non-transactional one uses `SET` and `RESET` around its statement.
 
 ## Conventions
 

@@ -22,6 +22,11 @@ spring:
       connection-timeout: 5000      # ms to wait for a free connection before failing
       idle-timeout: 300000          # 5 min
       max-lifetime: 1800000         # 30 min, below typical DB/firewall idle cutoffs
+      data-source-properties:
+        # Enforced by PostgreSQL on every connection: a runaway query, or a transaction left open by a bug,
+        # cannot hold a pool connection and its locks for long. A migration that needs longer starts with
+        # SET LOCAL statement_timeout = 0 (local to its transaction, so the pooled connection keeps the guard).
+        options: "-c statement_timeout=${DB_STATEMENT_TIMEOUT:15s} -c idle_in_transaction_session_timeout=${DB_IDLE_IN_TRANSACTION_TIMEOUT:60s}"
 
   jpa:
     open-in-view: false             # no lazy loading from controllers; forces explicit fetch plans

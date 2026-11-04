@@ -121,5 +121,6 @@ It found one violation when it was introduced: `PermissionController` read its r
 | Schema | Flyway migrations; Hibernate only validates |
 | Health | Spring Boot Actuator |
 | Background jobs | `@Scheduled` + ShedLock (one server per round), small batches, short transactions ([modules/JOBS.md](modules/JOBS.md)) |
+| Performance | Batched association loading guarded by statement budgets, HTTP caching with ETags for the storefront, server-side statement and idle-transaction timeouts, platform threads ([modules/PERFORMANCE.md](modules/PERFORMANCE.md), [ADR-016](adr/ADR-016-platform-threads.md)) |
 | Observability | Micrometer: Prometheus metrics on a separate management port, OpenTelemetry tracing, request and trace IDs in every log line ([modules/OBSERVABILITY.md](modules/OBSERVABILITY.md)) |
 | Durable emails | Transactional outbox in PostgreSQL, relay with `SKIP LOCKED` ([modules/EVENTS.md](modules/EVENTS.md), [ADR-015](adr/ADR-015-email-outbox.md)) |

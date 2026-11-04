@@ -118,6 +118,10 @@ Every catalogue write uses it. `CatalogIT.aSuspensionWaitsForASellerWriteInProgr
 
 Full-text search, filters and sorting of the storefront: [SEARCH.md](SEARCH.md).
 
+## 8c. HTTP caching (Phase 15)
+
+Storefront responses are `Cache-Control: public` (products 30 s, categories 5 min) with an ETag of their data, and answer `If-None-Match` with 304: [PERFORMANCE.md](PERFORMANCE.md).
+
 ## 8a. Images (Phase 8)
 
 Product images and their upload pipeline are described in [FILES.md](FILES.md).

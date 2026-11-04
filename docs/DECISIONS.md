@@ -19,6 +19,7 @@ An ADR records one significant decision: the context, the choice, and its conseq
 | [ADR-013](adr/ADR-013-in-transaction-module-events.md) | In-transaction events between modules (seller status to the catalogue) | Accepted |
 | [ADR-014](adr/ADR-014-search-in-postgresql.md) | Storefront search in PostgreSQL full text, not a search server (yet) | Accepted |
 | [ADR-015](adr/ADR-015-email-outbox.md) | A transactional outbox for emails, not a message broker | Accepted |
+| [ADR-016](adr/ADR-016-platform-threads.md) | Platform threads for request handling, virtual threads later | Accepted |
 
 Template for new ADRs:
 

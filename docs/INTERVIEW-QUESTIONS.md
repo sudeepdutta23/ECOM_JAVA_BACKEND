@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-262 questions so far.
+272 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -27,6 +27,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 12: Background jobs](#phase-12-background-jobs) | 8 | [modules/JOBS.md](modules/JOBS.md) |
 | [Phase 13: Events and the email outbox](#phase-13-events-and-the-email-outbox) | 8 | [modules/EVENTS.md](modules/EVENTS.md) |
 | [Phase 14: Observability](#phase-14-observability) | 9 | [modules/OBSERVABILITY.md](modules/OBSERVABILITY.md) |
+| [Phase 15: Performance](#phase-15-performance) | 10 | [modules/PERFORMANCE.md](modules/PERFORMANCE.md) |
 
 ## Phase 0: Setup
 
@@ -478,4 +479,21 @@ Design: [modules/OBSERVABILITY.md](modules/OBSERVABILITY.md).
 7. What do SLO buckets give you that an average latency does not?
 8. Why sample traces, and what do you lose at 10 % sampling?
 9. Write an alert that catches credential stuffing without paging on every forgotten password.
+
+## Phase 15: Performance
+
+Design: [modules/PERFORMANCE.md](modules/PERFORMANCE.md), [ADR-016](adr/ADR-016-platform-threads.md).
+
+### Steps 15.1 and 15.2: Guards and review
+
+1. What is an N+1 query, and how does a test catch it without knowing the SQL?
+2. Why compare one row with a full page instead of asserting one fixed number of statements?
+3. `JOIN FETCH`, `@EntityGraph` or batch loading by ID: which fits paged lists, and why can a fetch join break paging?
+4. Why would a whole-body ETag never match here, and what does the ETag hash instead?
+5. What does a 304 save, and what does it not save? What saves the server's work?
+6. Why must only the storefront be `Cache-Control: public`? What happens if a cart response is?
+7. What do `statement_timeout` and `idle_in_transaction_session_timeout` protect against, and why set them on the server?
+8. Why `SET LOCAL` and not `SET` for a migration that needs more time?
+9. Would virtual threads make this application faster? What is the real limit on its throughput?
+10. How would you load-test this API, and which metrics would you watch during the test?
 

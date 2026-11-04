@@ -9,6 +9,8 @@ import com.ecommerce.backend.catalog.service.StorefrontQuery;
 import com.ecommerce.backend.catalog.service.StorefrontService;
 import com.ecommerce.backend.common.response.ApiResponse;
 import com.ecommerce.backend.common.response.PageResponse;
+import com.ecommerce.backend.common.web.HttpCaching;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,8 +31,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 
-/** The public storefront: no sign-in needed (SecurityConfig permits GET /api/v1/catalog/**). */
+/**
+ * The public storefront: no sign-in needed (SecurityConfig permits GET /api/v1/catalog/**).
+ *
+ * <p>Responses are the same for every visitor, so browsers and CDNs may cache them ({@link HttpCaching}):
+ * briefly, because a suspended seller or a price change must show soon. Products for 30 s, like their
+ * server-side cache, so a change is visible everywhere within about a minute; categories, which
+ * change rarely, for 5 minutes.
+ */
 @RestController
 @RequestMapping(path = "/api/v1/catalog")
 @Tag(name = "Storefront")
@@ -39,11 +49,17 @@ public class StorefrontController {
     private final StorefrontService storefront;
     private final CategoryService categories;
     private final ProductImageService images;
+    private final ObjectMapper mapper;
 
-    public StorefrontController(StorefrontService storefront, CategoryService categories, ProductImageService images) {
+    static final Duration PRODUCTS_MAX_AGE = Duration.ofSeconds(30);
+    static final Duration CATEGORIES_MAX_AGE = Duration.ofMinutes(5);
+
+    public StorefrontController(StorefrontService storefront, CategoryService categories, ProductImageService images,
+                                ObjectMapper mapper) {
         this.storefront = storefront;
         this.categories = categories;
         this.images = images;
+        this.mapper = mapper;
     }
 
     @GetMapping(path = "/products", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -51,7 +67,7 @@ public class StorefrontController {
             description = "Only approved, active sellers. Every filter is optional. q is searched in names and "
                     + "descriptions (\"two words\" for a phrase, -word to exclude). Sort defaults to RELEVANCE with q, "
                     + "NEWEST without. At most 10 000 results deep.")
-    public ApiResponse<PageResponse<StorefrontProductResponse>> products(
+    public ResponseEntity<ApiResponse<PageResponse<StorefrontProductResponse>>> products(
             @Parameter(description = "Search text") @RequestParam(required = false) @Size(max = 100) String q,
             @Parameter(description = "Category slug") @RequestParam(required = false) @Size(max = 50) String category,
             @Parameter(description = "Seller slug") @RequestParam(required = false) @Size(max = 50) String seller,
@@ -62,15 +78,16 @@ public class StorefrontController {
             @Parameter(description = "Only products that can be bought now") @RequestParam(defaultValue = "false") boolean inStock,
             @RequestParam(required = false) StorefrontSort sort,
             @RequestParam(defaultValue = "0") @Min(0) @Max(PageResponse.MAX_PAGE) int page,
-            @RequestParam(defaultValue = PageResponse.DEFAULT_SIZE) @Min(1) @Max(PageResponse.MAX_SIZE) int size) {
-        return ApiResponse.success("Products", storefront.list(new StorefrontQuery(q, category, seller, minPrice, maxPrice,
-                inStock, sort, page, size)));
+            @RequestParam(defaultValue = PageResponse.DEFAULT_SIZE) @Min(1) @Max(PageResponse.MAX_SIZE) int size,
+            WebRequest request) {
+        return HttpCaching.publicJson(request, mapper, PRODUCTS_MAX_AGE, "Products", storefront.list(new StorefrontQuery(q,
+                category, seller, minPrice, maxPrice, inStock, sort, page, size)));
     }
 
     @GetMapping(path = "/products/{productId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "One product on sale", description = "404 for anything not on sale, like an unknown ID.")
-    public ApiResponse<StorefrontProductResponse> product(@PathVariable UUID productId) {
-        return ApiResponse.success("Product", storefront.get(productId));
+    public ResponseEntity<ApiResponse<StorefrontProductResponse>> product(@PathVariable UUID productId, WebRequest request) {
+        return HttpCaching.publicJson(request, mapper, PRODUCTS_MAX_AGE, "Product", storefront.get(productId));
     }
 
     @GetMapping("/products/{productId}/images/{imageId}")
@@ -84,7 +101,7 @@ public class StorefrontController {
 
     @GetMapping(path = "/categories", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "All categories, by name")
-    public ApiResponse<List<CategoryResponse>> categories() {
-        return ApiResponse.success("Categories", categories.list());
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> categories(WebRequest request) {
+        return HttpCaching.publicJson(request, mapper, CATEGORIES_MAX_AGE, "Categories", categories.list());
     }
 }
