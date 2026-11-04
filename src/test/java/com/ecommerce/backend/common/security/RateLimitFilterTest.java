@@ -3,6 +3,7 @@ package com.ecommerce.backend.common.security;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.github.bucket4j.TimeMeter;
 import java.time.Duration;
 import java.util.List;
@@ -36,11 +37,12 @@ class RateLimitFilterTest {
 
     private final ObjectMapper mapper = Jackson2ObjectMapperBuilder.json().build();
     private final ManualTimeMeter clock = new ManualTimeMeter();
+    private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
     private final RateLimitFilter filter = new RateLimitFilter(new RateLimitProperties(true, RateLimitProperties.Store.LOCAL, 1_000, List.of(
             new RateLimitProperties.Rule("login", "POST", List.of("/api/v1/auth/login"), 3, Duration.ofMinutes(1)),
             new RateLimitProperties.Rule("email", "POST", List.of("/api/v1/auth/register", "/api/v1/auth/password/forgot"),
                     2, Duration.ofMinutes(15)))),
-            new ProblemResponseWriter(mapper), clock);
+            new ProblemResponseWriter(mapper), clock, meters);
 
     private MockHttpServletResponse call(String method, String path, String ip) throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest(method, path);
@@ -125,7 +127,7 @@ class RateLimitFilterTest {
         };
         RateLimitFilter failing = new RateLimitFilter(new RateLimitProperties(true, RateLimitProperties.Store.LOCAL, 1_000, List.of(
                 new RateLimitProperties.Rule("login", "POST", List.of("/api/v1/auth/login"), 1, Duration.ofMinutes(1)))),
-                new ProblemResponseWriter(mapper), broken);
+                new ProblemResponseWriter(mapper), broken, meters);
 
         for (int i = 0; i < 3; i++) {
             MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/login");

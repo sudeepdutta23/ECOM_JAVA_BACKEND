@@ -1,6 +1,7 @@
 package com.ecommerce.backend.common.mail;
 
 import com.ecommerce.backend.common.util.Masking;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -40,10 +41,12 @@ public class EmailOutboxRelay {
 
     private final JdbcTemplate jdbc;
     private final EmailSender sender;
+    private final MeterRegistry meters;
 
-    public EmailOutboxRelay(JdbcTemplate jdbc, EmailSender sender) {
+    public EmailOutboxRelay(JdbcTemplate jdbc, EmailSender sender, MeterRegistry meters) {
         this.jdbc = jdbc;
         this.sender = sender;
+        this.meters = meters;
     }
 
     private record Claimed(UUID id, String recipient, String subject, String body, int attempts) {
@@ -109,12 +112,15 @@ public class EmailOutboxRelay {
             return false;
         }
         jdbc.update("DELETE FROM email_outbox WHERE id = ?", message.id());
+        meters.counter("emails.sent").increment();
         return true;
     }
 
     private void failed(Claimed message, RuntimeException e) {
         String error = e.getClass().getSimpleName();
-        if (message.attempts() >= MAX_ATTEMPTS) {
+        boolean last = message.attempts() >= MAX_ATTEMPTS;
+        meters.counter("emails.failed", "final", String.valueOf(last)).increment();
+        if (last) {
             jdbc.update("UPDATE email_outbox SET status = 'FAILED', last_error = ? WHERE id = ?", error, message.id());
             log.error("Email given up after {} attempts: id={}, to={}, subject={}", message.attempts(), message.id(),
                     Masking.email(message.recipient()), message.subject(), e);

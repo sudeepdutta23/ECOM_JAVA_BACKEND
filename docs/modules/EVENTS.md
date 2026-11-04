@@ -53,4 +53,4 @@ In tests, scheduling is off: the after-commit nudge sends, and `EmailOutboxIT` c
 
 - `SELECT count(*), min(created_at) FROM email_outbox WHERE status = 'PENDING'`: a growing backlog means the mail server is down or slow.
 - `SELECT * FROM email_outbox WHERE status = 'FAILED'`: given up; fix the cause, then `UPDATE ... SET status = 'PENDING', attempts = 0, next_attempt_at = now()` to resend.
-- Metrics and alerts for both arrive with Phase 14.
+- Both are metrics (`emails_outbox_pending`, `emails_outbox_oldest_age_seconds`, `emails_outbox_failed`) with alerts ([OBSERVABILITY.md](OBSERVABILITY.md)).

@@ -27,7 +27,7 @@ A plain `@Scheduled` method runs on every server: three servers would expire eve
 - **Short transactions**: the order job lists due IDs without a lock, then locks, re-checks and cancels **one order per transaction**. A customer paying the same order at that moment either takes the order lock first (the order is PAID and the job skips it) or waits and finds it cancelled. One order per transaction also matters technically: returning stock clears the persistence context.
 - **Idempotent**: a round that finds nothing does nothing; a second round never repeats work.
 - **An index per job query**, partial where it can be (`idx_orders_pending_payment`): a round costs the same however large the table grows. `QueryPlanIT` checks them.
-- **Logged with counts** when a round did something; metrics come with Phase 14.
+- **Logged with counts** when a round did something, and timed by `tasks_scheduled_execution_seconds` ([OBSERVABILITY.md](OBSERVABILITY.md)).
 
 ## 4. Configuration
 

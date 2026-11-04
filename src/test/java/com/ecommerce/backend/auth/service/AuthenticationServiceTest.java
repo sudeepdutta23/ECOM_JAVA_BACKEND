@@ -18,6 +18,7 @@ import com.ecommerce.backend.auth.security.AccessToken;
 import com.ecommerce.backend.auth.security.AccessTokenIssuer;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -59,7 +60,7 @@ class AuthenticationServiceTest {
         FailedLoginRecorder recorder = new FailedLoginRecorder(users, events, noTx, TestAuthProperties.defaults());
         service = new AuthenticationService(users, refreshTokens, accessTokens, encoder, recorder, noTx,
                 TestAuthProperties.defaults(),
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC), new SimpleMeterRegistry());
 
         user = User.register(EMAIL, REAL_HASH, NOW.minus(Duration.ofDays(30)));
         ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
@@ -232,7 +233,8 @@ class AuthenticationServiceTest {
         TransactionOperations noTx = TransactionOperations.withoutTransaction();
         AuthProperties props = TestAuthProperties.withFailedLoginFloor(Duration.ofMillis(150));
         AuthenticationService padded = new AuthenticationService(users, refreshTokens, accessTokens, encoder,
-                new FailedLoginRecorder(users, events, noTx, props), noTx, props, Clock.fixed(NOW, ZoneOffset.UTC));
+                new FailedLoginRecorder(users, events, noTx, props), noTx, props, Clock.fixed(NOW, ZoneOffset.UTC),
+                new SimpleMeterRegistry());
         when(users.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
         when(encoder.matches(PASSWORD, REAL_HASH)).thenReturn(true);
 
@@ -253,7 +255,8 @@ class AuthenticationServiceTest {
         TransactionOperations noTx = TransactionOperations.withoutTransaction();
         AuthProperties props = TestAuthProperties.withFailedLoginFloor(Duration.ofSeconds(5));
         AuthenticationService padded = new AuthenticationService(users, refreshTokens, accessTokens, encoder,
-                new FailedLoginRecorder(users, events, noTx, props), noTx, props, Clock.fixed(NOW, ZoneOffset.UTC));
+                new FailedLoginRecorder(users, events, noTx, props), noTx, props, Clock.fixed(NOW, ZoneOffset.UTC),
+                new SimpleMeterRegistry());
         User pending = User.register(EMAIL, REAL_HASH, NOW);
         when(users.findByEmail(EMAIL)).thenReturn(Optional.of(pending));
         when(encoder.matches(PASSWORD, REAL_HASH)).thenReturn(true);

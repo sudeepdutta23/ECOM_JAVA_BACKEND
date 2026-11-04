@@ -110,7 +110,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus   # prometheus: management port only (SecurityConfig, ManagementPort)
   endpoint:
     health:
       probes:
@@ -121,6 +121,18 @@ management:
       enabled: true
     java:
       enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}   # one label to tell services apart in a shared Prometheus
+    distribution:
+      # Latency buckets for SLOs and alerts ("95% under 250 ms"), without a full histogram per endpoint.
+      slo:
+        http.server.requests: 50ms,100ms,250ms,500ms,1s,2s
+  tracing:
+    # Share of requests whose spans are exported. Trace IDs are in every log line regardless.
+    # Spans are sent only when MANAGEMENT_OTLP_TRACING_ENDPOINT is set (e.g. http://otel-collector:4318/v1/traces).
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
 
 app:
   # Browser origins allowed to call the API (comma-separated). Empty = no cross-origin access.
@@ -252,7 +264,9 @@ springdoc:
 logging:
   pattern:
     # Every log line carries the request ID put into the MDC by RequestIdFilter
-    level: "%5p [${spring.application.name:},%X{requestId:-}]"
+    level: "%5p"
+    # The request ID (ours, or the caller's X-Request-Id) and the W3C trace ID, on every line
+    correlation: "[%X{requestId:-},%X{traceId:-}] "
   level:
     root: INFO
     com.ecommerce.backend: INFO

@@ -5,6 +5,7 @@ import com.ecommerce.backend.common.exception.ProblemDetails;
 import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.ConsumptionProbe;
 import io.github.bucket4j.TimeMeter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -54,18 +55,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final List<CompiledRule> rules;
     private final BucketStore buckets;
     private final ProblemResponseWriter writer;
+    private final MeterRegistry meters;
 
     /** In-memory buckets: one server, and the unit tests. */
-    RateLimitFilter(RateLimitProperties properties, ProblemResponseWriter writer, TimeMeter timeMeter) {
-        this(properties, writer, new LocalBucketStore(properties.maxTrackedClients(), longestPeriod(properties), timeMeter));
+    RateLimitFilter(RateLimitProperties properties, ProblemResponseWriter writer, TimeMeter timeMeter, MeterRegistry meters) {
+        this(properties, writer, new LocalBucketStore(properties.maxTrackedClients(), longestPeriod(properties), timeMeter), meters);
     }
 
-    RateLimitFilter(RateLimitProperties properties, ProblemResponseWriter writer, BucketStore buckets) {
+    RateLimitFilter(RateLimitProperties properties, ProblemResponseWriter writer, BucketStore buckets, MeterRegistry meters) {
         this.rules = properties.rules().stream()
                 .map(rule -> new CompiledRule(rule, Set.copyOf(rule.paths())))
                 .toList();
         this.buckets = buckets;
         this.writer = writer;
+        this.meters = meters;
     }
 
     static Duration longestPeriod(RateLimitProperties properties) {
@@ -102,6 +105,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             // Fail open: with the shared store down, refusing everyone would turn a Redis outage into a
             // site outage. Login stays protected by the per-account lockout and the bounded hashing.
             log.error("Rate limit store unavailable, request let through: rule={}", rule.name(), e);
+            meters.counter("rate_limit.store.errors").increment();
             chain.doFilter(request, response);
             return;
         }
@@ -117,6 +121,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         long retryAfterSeconds = Math.max(1, TimeUnit.NANOSECONDS.toSeconds(probe.getNanosToWaitForRefill()) + 1);
         log.warn("Rate limit exceeded: rule={}, clientIp={}, retryAfter={}s",
                 rule.name(), request.getRemoteAddr(), retryAfterSeconds);
+        meters.counter("rate_limit.rejected", "rule", rule.name()).increment();
         response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfterSeconds));
         writer.write(response, ProblemDetails.of(ErrorCode.TOO_MANY_REQUESTS,
                 "Too many requests. Try again in " + retryAfterSeconds + " seconds.", path));

@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-253 questions so far.
+262 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -26,6 +26,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 11: Redis](#phase-11-redis) | 8 | [modules/REDIS.md](modules/REDIS.md) |
 | [Phase 12: Background jobs](#phase-12-background-jobs) | 8 | [modules/JOBS.md](modules/JOBS.md) |
 | [Phase 13: Events and the email outbox](#phase-13-events-and-the-email-outbox) | 8 | [modules/EVENTS.md](modules/EVENTS.md) |
+| [Phase 14: Observability](#phase-14-observability) | 9 | [modules/OBSERVABILITY.md](modules/OBSERVABILITY.md) |
 
 ## Phase 0: Setup
 
@@ -461,4 +462,20 @@ Design: [modules/EVENTS.md](modules/EVENTS.md), [ADR-015](adr/ADR-015-email-outb
 6. Why are emails with one-time links kept out of the outbox, and what is the cost of that choice?
 7. When would you choose in-transaction listeners, an outbox, or best-effort after-commit listeners?
 8. When would you add a message broker to this system, and what would the outbox then publish?
+
+## Phase 14: Observability
+
+Design: [modules/OBSERVABILITY.md](modules/OBSERVABILITY.md).
+
+### Steps 14.1 and 14.2: Metrics, tracing and review
+
+1. What is the difference between logs, metrics and traces, and which would you look at first during an outage?
+2. Why must a request ID or trace ID be in every log line, and how does it survive a hop to an async thread?
+3. Why should `/actuator/prometheus` never be public, and how is it protected here?
+4. What is label cardinality, and why must a user ID or a raw URL never be a metric tag?
+5. Why count paid orders after commit rather than inside the payment method?
+6. Counter, gauge, timer: which would you use for logins, the outbox backlog and request latency, and why?
+7. What do SLO buckets give you that an average latency does not?
+8. Why sample traces, and what do you lose at 10 % sampling?
+9. Write an alert that catches credential stuffing without paging on every forgotten password.
 

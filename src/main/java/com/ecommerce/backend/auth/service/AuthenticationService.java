@@ -8,9 +8,11 @@ import com.ecommerce.backend.auth.security.AccessTokenIssuer;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.util.Masking;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -50,13 +52,14 @@ public class AuthenticationService {
     private final TransactionOperations transactions;
     private final Duration failedLoginMinDuration;
     private final Clock clock;
+    private final MeterRegistry meters;
     /** A real hash of a random string; checking against it costs the same as a real check. */
     private final String dummyHash;
 
     public AuthenticationService(UserRepository users, RefreshTokenService refreshTokens,
                                  AccessTokenIssuer accessTokens, PasswordEncoder passwordEncoder,
                                  FailedLoginRecorder failedLogins, TransactionOperations transactions,
-                                 AuthProperties properties, Clock clock) {
+                                 AuthProperties properties, Clock clock, MeterRegistry meters) {
         this.users = users;
         this.refreshTokens = refreshTokens;
         this.accessTokens = accessTokens;
@@ -65,6 +68,7 @@ public class AuthenticationService {
         this.transactions = transactions;
         this.failedLoginMinDuration = properties.failedLoginMinDuration();
         this.clock = clock;
+        this.meters = meters;
         this.dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
@@ -80,8 +84,12 @@ public class AuthenticationService {
     public LoginResult login(String rawEmail, String password, ClientInfo client) {
         long startedNanos = System.nanoTime();
         try {
-            return attemptLogin(rawEmail, password, client);
+            LoginResult result = attemptLogin(rawEmail, password, client);
+            meters.counter("auth.logins", "outcome", "success").increment();
+            return result;
         } catch (BusinessException e) {
+            // The error code, never the email: a failure spike is an attack signal, not a person.
+            meters.counter("auth.logins", "outcome", e.getErrorCode().name().toLowerCase(Locale.ROOT)).increment();
             if (e.getErrorCode() == ErrorCode.AUTH_INVALID_CREDENTIALS) {
                 padUntil(startedNanos + failedLoginMinDuration.toNanos());
             }

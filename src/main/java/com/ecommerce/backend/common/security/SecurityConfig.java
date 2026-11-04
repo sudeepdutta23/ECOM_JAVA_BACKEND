@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -69,7 +70,8 @@ public class SecurityConfig {
     };
 
     @Bean
-    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, ObjectMapper objectMapper,
+                                                      ManagementPort managementPort) throws Exception {
         ProblemResponseWriter writer = new ProblemResponseWriter(objectMapper);
         var entryPoint = new ProblemDetailsAuthenticationEntryPoint(writer);
         var accessDeniedHandler = new ProblemDetailsAccessDeniedHandler(writer);
@@ -86,6 +88,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
                         .requestMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
                         .requestMatchers("/error").permitAll()
+                        // Metrics: on the internal management port only (see ManagementPort).
+                        .requestMatchers(new AndRequestMatcher(managementPort.matcher(),
+                                PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/actuator/prometheus"))).permitAll()
+                        .requestMatchers("/actuator/**").denyAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         // Decoder: the JwtDecoder bean from JwtConfig. Authorities: our claims, see below.

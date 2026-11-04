@@ -12,6 +12,7 @@ import com.ecommerce.backend.support.RecordingEmailSender;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -67,6 +68,9 @@ class JobsIT extends AbstractIntegrationTest {
 
     @Autowired
     private DataSource dataSource;
+
+    @Autowired
+    private MeterRegistry meters;
 
     private AuthTestClient client;
     private final List<UUID> created = new ArrayList<>();
@@ -162,6 +166,7 @@ class JobsIT extends AbstractIntegrationTest {
         age(abandoned, Duration.ofMinutes(31));
         age(paid, Duration.ofMinutes(31));
         assertThat(stock()).isEqualTo(4);
+        double expiredBefore = meters.counter("orders.cancelled", "by", "system").count();
 
         assertThat(unpaidOrders.expireDue()).isGreaterThanOrEqualTo(1);
 
@@ -172,6 +177,7 @@ class JobsIT extends AbstractIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM notifications WHERE user_id = ? AND type = 'ORDER_EXPIRED'",
                 Long.class, customerId)).isOne();
         assertThat(unpaidOrders.expireDue()).as("idempotent: nothing left to expire").isZero();
+        assertThat(meters.counter("orders.cancelled", "by", "system").count()).isGreaterThan(expiredBefore);
     }
 
     @Test

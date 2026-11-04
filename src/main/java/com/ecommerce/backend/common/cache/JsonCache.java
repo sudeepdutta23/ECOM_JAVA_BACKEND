@@ -6,6 +6,9 @@ import java.time.Duration;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -35,11 +38,19 @@ public class JsonCache {
     private final StringRedisTemplate redis;
     private final ObjectMapper mapper;
     private final boolean enabled;
+    private final MeterRegistry meters;
 
-    public JsonCache(StringRedisTemplate redis, ObjectMapper mapper, @Value("${app.cache.enabled:true}") boolean enabled) {
+    @Autowired
+    public JsonCache(StringRedisTemplate redis, ObjectMapper mapper, @Value("${app.cache.enabled:true}") boolean enabled,
+                     MeterRegistry meters) {
         this.redis = redis;
         this.mapper = mapper;
         this.enabled = enabled;
+        this.meters = meters;
+    }
+
+    JsonCache(StringRedisTemplate redis, ObjectMapper mapper, boolean enabled) {
+        this(redis, mapper, enabled, new SimpleMeterRegistry());
     }
 
     /** A cache that always loads: for unit tests and for switching caching off. */
@@ -54,12 +65,16 @@ public class JsonCache {
         try {
             String cached = redis.opsForValue().get(PREFIX + key);
             if (cached != null) {
-                return mapper.readValue(cached, type);
+                T value = mapper.readValue(cached, type);
+                count(key, "hit");
+                return value;
             }
         } catch (Exception e) {
             log.warn("Cache read failed, loading from the database: key={}", key, e);
+            count(key, "error");
             return loader.get();
         }
+        count(key, "miss");
         T value = loader.get();
         try {
             redis.opsForValue().set(PREFIX + key, mapper.writeValueAsString(value), ttl);
@@ -67,6 +82,12 @@ public class JsonCache {
             log.warn("Cache write failed: key={}", key, e);
         }
         return value;
+    }
+
+    /** {@code cache.requests{cache, result}}, where the cache is the key up to its first ':' (never an ID). */
+    private void count(String key, String result) {
+        int colon = key.indexOf(':');
+        meters.counter("cache.requests", "cache", colon < 0 ? key : key.substring(0, colon), "result", result).increment();
     }
 
     /** Evicts once the surrounding transaction committed, or at once outside a transaction. */

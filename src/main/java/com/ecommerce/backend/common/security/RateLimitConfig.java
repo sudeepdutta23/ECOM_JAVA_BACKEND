@@ -1,6 +1,7 @@
 package com.ecommerce.backend.common.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.github.bucket4j.TimeMeter;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
@@ -27,10 +28,11 @@ public class RateLimitConfig {
     @Bean
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilter(RateLimitProperties properties,
                                                                    ObjectMapper objectMapper,
-                                                                   ObjectProvider<RedisBucketStore> redisBuckets) {
+                                                                   ObjectProvider<RedisBucketStore> redisBuckets,
+                                                                   MeterRegistry meters) {
         RateLimitFilter filter = properties.store() == RateLimitProperties.Store.REDIS
-                ? new RateLimitFilter(properties, new ProblemResponseWriter(objectMapper), redisBuckets.getObject())
-                : new RateLimitFilter(properties, new ProblemResponseWriter(objectMapper), TimeMeter.SYSTEM_NANOTIME);
+                ? new RateLimitFilter(properties, new ProblemResponseWriter(objectMapper), redisBuckets.getObject(), meters)
+                : new RateLimitFilter(properties, new ProblemResponseWriter(objectMapper), TimeMeter.SYSTEM_NANOTIME, meters);
         FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setName("rateLimitFilter");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
