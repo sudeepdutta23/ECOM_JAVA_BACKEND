@@ -1,4 +1,6 @@
-# Local development infrastructure only. The application itself runs from your IDE or Maven.
+# Local development infrastructure. The application runs from your IDE or Maven, or in a container:
+#   docker compose up -d                      infrastructure only (PostgreSQL, Redis, Mailpit)
+#   docker compose --profile app up --build   the same plus the application image, on http://localhost:8080
 # Values come from the .env file next to this file (copy .env.example to .env first).
 services:
   postgres:
@@ -47,5 +49,52 @@ services:
       timeout: 3s
       retries: 10
 
+  # The production image (Dockerfile), run with the dev profile: simulated payments, emails to Mailpit,
+  # a generated JWT key. Production uses the same image with the prod profile (docs/modules/DOCKER.md).
+  app:
+    profiles: [app]
+    build: .
+    image: ecommerce-backend:local
+    container_name: ecommerce-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    volumes:
+      - app-files:/var/lib/ecommerce/files
+    # Hardening that production should copy: no writes outside the volume and /tmp, no Linux
+    # capabilities, no privilege escalation, and a memory limit the JVM sizes itself to.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+      retries: 5
+
 volumes:
   postgres-data:
+  app-files:

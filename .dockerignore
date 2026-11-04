@@ -1,0 +1,12 @@
+# Only what the build needs goes to the Docker daemon: faster builds, and no secrets in the image.
+*
+!.mvn/
+!mvnw
+!pom.xml
+!src/main/
+
+# Never, even if a rule above changes
+**/.env
+**/.env.*
+**/*.pem
+**/*.key

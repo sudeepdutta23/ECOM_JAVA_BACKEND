@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-272 questions so far.
+282 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -28,6 +28,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 13: Events and the email outbox](#phase-13-events-and-the-email-outbox) | 8 | [modules/EVENTS.md](modules/EVENTS.md) |
 | [Phase 14: Observability](#phase-14-observability) | 9 | [modules/OBSERVABILITY.md](modules/OBSERVABILITY.md) |
 | [Phase 15: Performance](#phase-15-performance) | 10 | [modules/PERFORMANCE.md](modules/PERFORMANCE.md) |
+| [Phase 16: Docker](#phase-16-docker) | 10 | [modules/DOCKER.md](modules/DOCKER.md) |
 
 ## Phase 0: Setup
 
@@ -496,4 +497,21 @@ Design: [modules/PERFORMANCE.md](modules/PERFORMANCE.md), [ADR-016](adr/ADR-016-
 8. Why `SET LOCAL` and not `SET` for a migration that needs more time?
 9. Would virtual threads make this application faster? What is the real limit on its throughput?
 10. How would you load-test this API, and which metrics would you watch during the test?
+
+## Phase 16: Docker
+
+Design: [modules/DOCKER.md](modules/DOCKER.md).
+
+### Steps 16.1 and 16.2: Image and review
+
+1. Why a multi-stage build? What would a single-stage image contain that production should not?
+2. Why copy `pom.xml` and resolve dependencies before copying the sources?
+3. What are Spring Boot's jar layers, and what do they save on every deployment?
+4. Why run as a fixed non-root UID, and why should the process not own its own code?
+5. Why must the JVM be PID 1 (exec form), and what happens on `docker stop` otherwise?
+6. What does `-XX:MaxRAMPercentage` do, and why not set `-Xmx` in the image?
+7. Why does the image default to the prod profile, and what happens if it starts without configuration?
+8. What do `read_only`, `cap_drop: ALL` and `no-new-privileges` protect against?
+9. Why are tests not run inside `docker build`?
+10. How do secrets reach a container without being baked into an image layer?
 

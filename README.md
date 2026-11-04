@@ -42,6 +42,15 @@ curl http://localhost:8080/actuator/health
 
 Stop the database with `docker compose down`. Add `-v` to also delete its data volume.
 
+### Everything in containers
+
+```bash
+docker compose --profile app up --build -d        # the application image too
+curl -i http://localhost:8080/api/v1/system/ping   # APP_PORT=8090 if 8080 is taken
+```
+
+The image (`Dockerfile`) is the production one; Compose runs it with the dev profile. Production settings: [docs/modules/DOCKER.md](docs/modules/DOCKER.md).
+
 ## Configuration and profiles
 
 | Profile | Used for | Secrets come from |
