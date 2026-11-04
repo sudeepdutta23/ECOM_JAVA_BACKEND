@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-229 questions so far.
+237 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -23,6 +23,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 8: Files](#phase-8-files) | 8 | [modules/FILES.md](modules/FILES.md) |
 | [Phase 9: Audit](#phase-9-audit) | 8 | [modules/AUDIT.md](modules/AUDIT.md) |
 | [Phase 10: Search, filtering, pagination](#phase-10-search-filtering-pagination) | 8 | [modules/SEARCH.md](modules/SEARCH.md) |
+| [Phase 11: Redis](#phase-11-redis) | 8 | [modules/REDIS.md](modules/REDIS.md) |
 
 ## Phase 0: Setup
 
@@ -413,4 +414,19 @@ Design: [modules/SEARCH.md](modules/SEARCH.md), [ADR-014](adr/ADR-014-search-in-
 6. Why add `id` as a tie-breaker to every sort?
 7. Why cap OFFSET paging at a fixed depth, and what does a deep OFFSET cost the database?
 8. Why are the search and price indexes partial?
+
+## Phase 11: Redis
+
+Design: [modules/REDIS.md](modules/REDIS.md).
+
+### Steps 11.1 and 11.2: Shared rate limits, read cache and review
+
+1. Why do in-memory rate limits break as soon as a second server runs? How does a shared bucket in Redis fix it?
+2. How does compare-and-swap keep two servers from both spending a bucket's last token?
+3. Should a rate limiter fail open or closed when Redis is down? What protects login while it is open?
+4. Why evict a cache entry after the transaction commits rather than before or inside it? Which race remains, and what bounds it?
+5. What should never be cached under a shared key, and why?
+6. Why can a product page with a stale stock flag be cached safely in this design?
+7. Why run Redis without persistence here, and what would change if it held sessions or queues?
+8. Why an explicit read-through helper instead of `@Cacheable` for two cached reads?
 

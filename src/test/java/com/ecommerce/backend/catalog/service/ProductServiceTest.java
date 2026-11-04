@@ -18,6 +18,7 @@ import com.ecommerce.backend.catalog.dto.ProductResponse;
 import com.ecommerce.backend.catalog.entity.Product;
 import com.ecommerce.backend.catalog.repository.CategoryRepository;
 import com.ecommerce.backend.catalog.repository.ProductRepository;
+import com.ecommerce.backend.common.cache.JsonCache;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.RequestValidationException;
@@ -50,7 +51,7 @@ class ProductServiceTest {
     private final CategoryRepository categories = mock(CategoryRepository.class);
     private final OrganizationGuard guard = mock(OrganizationGuard.class);
     private final ProductService service = new ProductService(products, categories, guard, new CatalogProperties("EUR"),
-            Clock.fixed(NOW, ZoneOffset.UTC));
+            JsonCache.disabled(), Clock.fixed(NOW, ZoneOffset.UTC));
 
     @BeforeEach
     void setUp() {

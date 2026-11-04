@@ -5,9 +5,12 @@ import com.ecommerce.backend.catalog.entity.Category;
 import com.ecommerce.backend.catalog.repository.CategoryRepository;
 import com.ecommerce.backend.catalog.repository.ProductRepository;
 import com.ecommerce.backend.common.audit.Audited;
+import com.ecommerce.backend.common.cache.JsonCache;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -22,18 +25,27 @@ public class CategoryService {
 
     private static final Logger log = LoggerFactory.getLogger(CategoryService.class);
 
+    /** Read on every storefront page, changed a few times a year: cached, evicted on every change. */
+    static final String CACHE_KEY = "categories";
+    private static final Duration CACHE_TTL = Duration.ofMinutes(10);
+    private static final TypeReference<List<CategoryResponse>> LIST = new TypeReference<>() {
+    };
+
     private final CategoryRepository categories;
     private final ProductRepository products;
+    private final JsonCache cache;
 
-    public CategoryService(CategoryRepository categories, ProductRepository products) {
+    public CategoryService(CategoryRepository categories, ProductRepository products, JsonCache cache) {
         this.categories = categories;
         this.products = products;
+        this.cache = cache;
     }
 
     /** All categories by name. A curated list of tens or hundreds, so no paging. */
     @Transactional(readOnly = true)
     public List<CategoryResponse> list() {
-        return categories.findAllByOrderByNameAscIdAsc().stream().map(CategoryResponse::from).toList();
+        return cache.get(CACHE_KEY, CACHE_TTL, LIST,
+                () -> categories.findAllByOrderByNameAscIdAsc().stream().map(CategoryResponse::from).toList());
     }
 
     @Transactional
@@ -51,6 +63,7 @@ public class CategoryService {
             }
             throw e;
         }
+        cache.evictAfterCommit(CACHE_KEY);
         log.info("Category created: categoryId={}, slug={}, by={}", category.getId(), slug, callerId);
         return CategoryResponse.from(category);
     }
@@ -65,6 +78,7 @@ public class CategoryService {
         }
         category.rename(name);
         categories.flush();
+        cache.evictAfterCommit(CACHE_KEY);
         log.info("Category renamed: categoryId={}, by={}", categoryId, callerId);
         return CategoryResponse.from(category);
     }
@@ -86,6 +100,7 @@ public class CategoryService {
         } catch (DataIntegrityViolationException e) {
             throw inUse();
         }
+        cache.evictAfterCommit(CACHE_KEY);
         log.info("Category deleted: categoryId={}, by={}", categoryId, callerId);
     }
 

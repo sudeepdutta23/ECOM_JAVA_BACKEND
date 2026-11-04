@@ -6,6 +6,7 @@ import com.ecommerce.backend.catalog.dto.ProductResponse;
 import com.ecommerce.backend.catalog.entity.Product;
 import com.ecommerce.backend.catalog.repository.CategoryRepository;
 import com.ecommerce.backend.catalog.repository.ProductRepository;
+import com.ecommerce.backend.common.cache.JsonCache;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.RequestValidationException;
@@ -45,14 +46,16 @@ public class ProductService {
     private final CategoryRepository categories;
     private final OrganizationGuard guard;
     private final CatalogProperties properties;
+    private final JsonCache cache;
     private final Clock clock;
 
     public ProductService(ProductRepository products, CategoryRepository categories, OrganizationGuard guard,
-                          CatalogProperties properties, Clock clock) {
+                          CatalogProperties properties, JsonCache cache, Clock clock) {
         this.products = products;
         this.categories = categories;
         this.guard = guard;
         this.properties = properties;
+        this.cache = cache;
         this.clock = clock;
     }
 
@@ -103,6 +106,7 @@ public class ProductService {
         }
         product.change(details);
         save(product);
+        cache.evictAfterCommit(StorefrontService.productKey(productId));
         log.info("Product updated: organizationId={}, productId={}, by={}", organizationId, productId, userId);
         return ProductResponse.from(product);
     }
@@ -116,6 +120,7 @@ public class ProductService {
         }
         product.publish();
         products.flush();
+        cache.evictAfterCommit(StorefrontService.productKey(productId));
         log.info("Product published: organizationId={}, productId={}, by={}", organizationId, productId, userId);
         return ProductResponse.from(product);
     }
@@ -129,6 +134,7 @@ public class ProductService {
         }
         product.archive();
         products.flush();
+        cache.evictAfterCommit(StorefrontService.productKey(productId));
         log.info("Product archived: organizationId={}, productId={}, by={}", organizationId, productId, userId);
         return ProductResponse.from(product);
     }

@@ -21,10 +21,15 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app.rate-limit")
 public record RateLimitProperties(
         boolean enabled,
+        Store store,
         @Min(1) long maxTrackedClients,
         @Valid List<Rule> rules) {
 
+    /** Where buckets live: this server's memory, or Redis, shared by all servers (Phase 11). */
+    public enum Store { LOCAL, REDIS }
+
     public RateLimitProperties {
+        store = store == null ? Store.LOCAL : store;
         rules = rules == null ? List.of() : List.copyOf(rules);
     }
 

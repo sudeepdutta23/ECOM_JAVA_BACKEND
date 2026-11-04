@@ -127,7 +127,7 @@ Set `app.security.password-hashing.max-concurrent` and `app.auth.failed-login-mi
 |---|---|
 | Login, registration and token endpoints not built yet | 1 (Steps 1.4 to 1.7) |
 | No roles or permissions | 2 |
-| Rate limits are per instance, not shared | 11 (Redis) |
+| ~~Rate limits are per instance, not shared~~ | Closed in Phase 11: buckets in Redis, shared by every server ([modules/REDIS.md](modules/REDIS.md)) |
 | No HTTPS (terminated at the load balancer in production) | 16 to 18 |
 | No security headers (HSTS, CSP...) | 1 via Spring Security |
 

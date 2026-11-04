@@ -61,6 +61,16 @@ spring:
         await-termination: true
         await-termination-period: 10s
 
+  # Redis (Phase 11): shared rate limits and the read cache. Optional at runtime: when it is down,
+  # requests are not rate limited and reads go to the database (both logged), the site stays up.
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+      connect-timeout: 2s
+
   # Uploads (Phase 8): rejected with 413 before a handler sees them. Images are re-encoded anyway,
   # so 5 MB is plenty for a product photo.
   servlet:
@@ -120,6 +130,8 @@ app:
   # Per-client-IP limits on sensitive endpoints (token bucket). First matching rule applies.
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
+    # redis: one bucket per client shared by every server; local: per server (a single instance only).
+    store: ${RATE_LIMIT_STORE:redis}
     max-tracked-clients: 100000
     rules:
       - name: login                       # password guessing and credential stuffing
@@ -171,6 +183,10 @@ app:
   catalog:
     # The one platform currency (ISO 4217, two decimal places). Every price is in it.
     currency: ${CATALOG_CURRENCY:EUR}
+
+  cache:
+    # Read cache in Redis for the category list and product pages (JsonCache). false: always the database.
+    enabled: ${CACHE_ENABLED:true}
 
   files:
     # Where uploaded files live. "local" writes below local-dir (dev, test, a single server);

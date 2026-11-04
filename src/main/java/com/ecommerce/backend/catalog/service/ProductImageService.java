@@ -5,6 +5,7 @@ import com.ecommerce.backend.catalog.entity.Product;
 import com.ecommerce.backend.catalog.entity.ProductImage;
 import com.ecommerce.backend.catalog.repository.ProductImageRepository;
 import com.ecommerce.backend.catalog.repository.ProductRepository;
+import com.ecommerce.backend.common.cache.JsonCache;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
@@ -47,15 +48,17 @@ public class ProductImageService {
     private final ImageProcessor processor;
     private final FileStorage storage;
     private final ImageProperties properties;
+    private final JsonCache cache;
 
     public ProductImageService(ProductImageRepository images, ProductRepository products, OrganizationGuard guard,
-                               ImageProcessor processor, FileStorage storage, ImageProperties properties) {
+                               ImageProcessor processor, FileStorage storage, ImageProperties properties, JsonCache cache) {
         this.images = images;
         this.products = products;
         this.guard = guard;
         this.processor = processor;
         this.storage = storage;
         this.properties = properties;
+        this.cache = cache;
     }
 
     @Transactional
@@ -79,6 +82,7 @@ public class ProductImageService {
         });
         ProductImage saved = images.save(ProductImage.of(productId, organizationId, key, image.contentType(),
                 image.bytes().length, image.width(), image.height()));
+        cache.evictAfterCommit(StorefrontService.productKey(productId)); // the page lists its images
         log.info("Product image uploaded: organizationId={}, productId={}, imageId={}, bytes={}", organizationId,
                 productId, saved.getId(), image.bytes().length);
         return ProductImageResponse.from(saved);
@@ -104,6 +108,7 @@ public class ProductImageService {
                 storage.delete(key);
             }
         });
+        cache.evictAfterCommit(StorefrontService.productKey(productId)); // the page lists its images
         log.info("Product image deleted: organizationId={}, productId={}, imageId={}", organizationId, productId, imageId);
     }
 

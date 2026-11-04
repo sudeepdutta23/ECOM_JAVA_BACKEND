@@ -36,7 +36,7 @@ class RateLimitFilterTest {
 
     private final ObjectMapper mapper = Jackson2ObjectMapperBuilder.json().build();
     private final ManualTimeMeter clock = new ManualTimeMeter();
-    private final RateLimitFilter filter = new RateLimitFilter(new RateLimitProperties(true, 1_000, List.of(
+    private final RateLimitFilter filter = new RateLimitFilter(new RateLimitProperties(true, RateLimitProperties.Store.LOCAL, 1_000, List.of(
             new RateLimitProperties.Rule("login", "POST", List.of("/api/v1/auth/login"), 3, Duration.ofMinutes(1)),
             new RateLimitProperties.Rule("email", "POST", List.of("/api/v1/auth/register", "/api/v1/auth/password/forgot"),
                     2, Duration.ofMinutes(15)))),
@@ -114,6 +114,27 @@ class RateLimitFilterTest {
         for (int i = 0; i < 20; i++) {
             assertThat(call("GET", "/api/v1/auth/login", "203.0.113.6").getStatus()).isEqualTo(200);
             assertThat(call("POST", "/api/v1/orders", "203.0.113.6").getStatus()).isEqualTo(200);
+        }
+    }
+
+    /** With the shared store down, every request goes through and the outage is logged: no site outage. */
+    @Test
+    void failsOpenWhenTheBucketStoreIsDown() throws Exception {
+        BucketStore broken = (key, configuration) -> {
+            throw new IllegalStateException("Redis unreachable");
+        };
+        RateLimitFilter failing = new RateLimitFilter(new RateLimitProperties(true, RateLimitProperties.Store.LOCAL, 1_000, List.of(
+                new RateLimitProperties.Rule("login", "POST", List.of("/api/v1/auth/login"), 1, Duration.ofMinutes(1)))),
+                new ProblemResponseWriter(mapper), broken);
+
+        for (int i = 0; i < 3; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/login");
+            request.setRemoteAddr("203.0.113.99");
+            MockHttpServletResponse response = new MockHttpServletResponse();
+            MockFilterChain chain = new MockFilterChain();
+            failing.doFilter(request, response, chain);
+            assertThat(response.getStatus()).isEqualTo(200);
+            assertThat(chain.getRequest()).as("passed on although over the limit").isNotNull();
         }
     }
 }

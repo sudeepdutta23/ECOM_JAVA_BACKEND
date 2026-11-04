@@ -8,12 +8,15 @@ import com.ecommerce.backend.catalog.repository.CategoryRepository;
 import com.ecommerce.backend.catalog.repository.ProductImageRepository;
 import com.ecommerce.backend.catalog.repository.ProductRepository;
 import com.ecommerce.backend.catalog.repository.ProductSearchRepository;
+import com.ecommerce.backend.common.cache.JsonCache;
 import com.ecommerce.backend.common.exception.RequestValidationException;
 import com.ecommerce.backend.common.exception.ResourceNotFoundException;
 import com.ecommerce.backend.common.response.PageResponse;
 import com.ecommerce.backend.common.util.MinorUnits;
 import com.ecommerce.backend.org.SellerInfo;
 import com.ecommerce.backend.org.service.SellerDirectory;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,14 +49,20 @@ public class StorefrontService {
     private final SellerDirectory sellers;
     private final ProductImageRepository images;
     private final ProductSearchRepository search;
+    private final JsonCache cache;
+
+    static final long PRODUCT_TTL_SECONDS = 30;
+    private static final TypeReference<StorefrontProductResponse> PRODUCT = new TypeReference<>() {
+    };
 
     public StorefrontService(ProductRepository products, CategoryRepository categories, SellerDirectory sellers,
-                             ProductImageRepository images, ProductSearchRepository search) {
+                             ProductImageRepository images, ProductSearchRepository search, JsonCache cache) {
         this.products = products;
         this.categories = categories;
         this.sellers = sellers;
         this.images = images;
         this.search = search;
+        this.cache = cache;
     }
 
     /**
@@ -114,8 +123,21 @@ public class StorefrontService {
         return PageResponse.from(new PageImpl<>(content, request, found.total()), Function.identity());
     }
 
+    /**
+     * A product page, cached for {@value #PRODUCT_TTL_SECONDS} seconds: the busiest public read.
+     * Seller edits evict it; stock and seller status changes show within the TTL, and checkout
+     * re-checks both anyway, so a stale page can never sell what is gone.
+     */
     @Transactional(readOnly = true)
     public StorefrontProductResponse get(UUID productId) {
+        return cache.get(productKey(productId), Duration.ofSeconds(PRODUCT_TTL_SECONDS), PRODUCT, () -> load(productId));
+    }
+
+    static String productKey(UUID productId) {
+        return "product:" + productId;
+    }
+
+    private StorefrontProductResponse load(UUID productId) {
         Product product = products.findById(productId).filter(Product::isOnSale)
                 .orElseThrow(() -> new ResourceNotFoundException("Product"));
         SellerInfo seller = sellers.activeSellers(List.of(product.getOrganizationId())).get(product.getOrganizationId());

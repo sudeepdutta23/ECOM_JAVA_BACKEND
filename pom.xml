@@ -68,11 +68,22 @@
         </dependency>
 
         <!-- ===== Rate limiting ===== -->
-        <!-- Token-bucket algorithm; Phase 11 swaps the in-memory store for Redis -->
+        <!-- Token-bucket algorithm; buckets in memory (one server) or in Redis (shared, Phase 11) -->
         <dependency>
             <groupId>com.bucket4j</groupId>
             <artifactId>bucket4j_jdk17-core</artifactId>
             <version>${bucket4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-lettuce</artifactId>
+            <version>${bucket4j.version}</version>
+        </dependency>
+
+        <!-- ===== Redis (Phase 11): shared rate limits and a read cache ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
         <!-- Bounded, self-expiring map of buckets, so millions of IPs cannot exhaust memory -->
         <dependency>
@@ -228,7 +239,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off</argLine>
+                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off -Xmx1g</argLine>
                 </configuration>
             </plugin>
 
@@ -237,7 +248,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
-                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off</argLine>
+                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off -Xmx1g</argLine>
                 </configuration>
                 <executions>
                     <execution>

@@ -25,3 +25,9 @@ logs/
 *.pem
 *.key
 keys/
+
+# JVM crash reports (hs_err) and replay files
+hs_err_pid*.log
+replay_pid*.log
+# Editor workspace files
+*.code-workspace

@@ -3,6 +3,7 @@ package com.ecommerce.backend.catalog.repository;
 import com.ecommerce.backend.catalog.ProductStatus;
 import com.ecommerce.backend.catalog.entity.Product;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -29,6 +30,10 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
     boolean existsByOrganizationIdAndSku(UUID organizationId, String sku);
 
     boolean existsByCategoryId(UUID categoryId);
+
+    /** A seller's product IDs, to evict their cached pages. Served by {@code idx_products_organization_id}. */
+    @Query("select p.id from Product p where p.organizationId = :organizationId")
+    List<UUID> findIdsByOrganizationId(@Param("organizationId") UUID organizationId);
 
     /**
      * Adds {@code delta} (negative to remove) in one statement, never below 0 or above the CHECK's

@@ -2,6 +2,12 @@ package com.ecommerce.backend.common.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.bucket4j.TimeMeter;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
+import java.time.Duration;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.data.redis.RedisConnectionDetails;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,14 +26,34 @@ public class RateLimitConfig {
 
     @Bean
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilter(RateLimitProperties properties,
-                                                                   ObjectMapper objectMapper) {
-        RateLimitFilter filter = new RateLimitFilter(properties, new ProblemResponseWriter(objectMapper),
-                TimeMeter.SYSTEM_NANOTIME);
+                                                                   ObjectMapper objectMapper,
+                                                                   ObjectProvider<RedisBucketStore> redisBuckets) {
+        RateLimitFilter filter = properties.store() == RateLimitProperties.Store.REDIS
+                ? new RateLimitFilter(properties, new ProblemResponseWriter(objectMapper), redisBuckets.getObject())
+                : new RateLimitFilter(properties, new ProblemResponseWriter(objectMapper), TimeMeter.SYSTEM_NANOTIME);
         FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setName("rateLimitFilter");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
         registration.addUrlPatterns("/api/*");
         registration.setEnabled(properties.enabled());
         return registration;
+    }
+
+    /**
+     * The shared store, on its own Lettuce connection (Bucket4j needs byte[] values). Built from
+     * Spring Boot's Redis connection details, so local settings, environment variables and
+     * Testcontainers all configure it the same way.
+     */
+    @Bean(destroyMethod = "close")
+    @ConditionalOnProperty(name = "app.rate-limit.store", havingValue = "redis")
+    RedisBucketStore redisBucketStore(RedisConnectionDetails connection) {
+        RedisConnectionDetails.Standalone standalone = connection.getStandalone();
+        RedisURI.Builder uri = RedisURI.builder().withHost(standalone.getHost()).withPort(standalone.getPort())
+                .withDatabase(standalone.getDatabase()).withTimeout(Duration.ofSeconds(2));
+        if (connection.getPassword() != null) {
+            uri = connection.getUsername() == null ? uri.withPassword(connection.getPassword().toCharArray())
+                    : uri.withAuthentication(connection.getUsername(), connection.getPassword());
+        }
+        return new RedisBucketStore(RedisClient.create(uri.build()));
     }
 }

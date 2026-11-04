@@ -14,7 +14,7 @@ Surefire runs `*Test`. Failsafe runs `*IT`.
 
 ## Running
 
-Unit and integration tests load Mockito as a `-javaagent` (configured in the POM). JDK 21 restricts agents that attach themselves at runtime, and Mockito's self-attach failed intermittently. If an IDE builds into `target/` while Maven runs, classes can vanish mid-run (`NoClassDefFoundError`, "Unable to find a @SpringBootConfiguration"): run `mvn clean verify` with the IDE's auto-build paused.
+Integration tests start PostgreSQL and Redis with Testcontainers, so Docker must be running. Test JVMs are capped at 1 GB of heap: on a machine short of memory, uncapped forks crashed ("insufficient memory"). Unit and integration tests load Mockito as a `-javaagent` (configured in the POM). JDK 21 restricts agents that attach themselves at runtime, and Mockito's self-attach failed intermittently. If an IDE builds into `target/` while Maven runs, classes can vanish mid-run (`NoClassDefFoundError`, "Unable to find a @SpringBootConfiguration"): run `mvn clean verify` with the IDE's auto-build paused.
 
 ## Principles
 
@@ -98,6 +98,9 @@ Unit and integration tests load Mockito as a `-javaagent` (configured in the POM
 | `ProductImageIT` | Over HTTP: upload re-encoded under a server-made key (the file name `../../../etc/passwd.png` never becomes a path); drafts not public but previewable (`no-store`); on sale listed and served with the stored type, `nosniff`, public caching; disguised scripts and empty files 400; 6 MB 413 before any code reads it; eight images at most, deleting removes the file; outsiders 404 |
 | `AuditIT` | An administrator's suspension and reactivation are recorded with actor, target, request ID and client IP, without the reason; a refused action leaves no entry; role grants carry their detail, category changes their new ID; UPDATE, DELETE and TRUNCATE fail on the table even for the application's own account; `audit:read` required; keyset paging with a cursor that ends on the last page |
 | `StorefrontQueryTest`, `SearchIT` | Sort defaults (relevance with text, newest without); name matches rank above description matches; phrases, exclusions, case; drafts never found; injection attempts and stray operators as search text answer 200 and change nothing; price range, in stock, price sorting and paging; min above max, unknown sort, negative or sub-cent prices, too deep pages and too long text are 400 |
+| `JsonCacheTest`, `RateLimitFilterTest` (fail open) | Miss loads and stores with the TTL, hit read back into records, Redis down and unreadable values fall back to the loader, eviction waits for the commit, disabled cache always loads; a broken bucket store lets requests through |
+| `SharedRateLimitIT` | Two stores (two servers) against one Redis share a client's bucket: exactly the limit gets through; other clients have their own buckets |
+| `CatalogCacheIT` | The category list is cached and a new category shows at once; a suspended seller's cached product page disappears at once |
 | `OrganizationSchemaIT` | V7 and V8: slug format and uniqueness, trimmed name, suspension reason, role CHECK, cascades with organisation and user, SET NULL on founder and actor, ADMIN holds `org:*`, indexes; one open invitation per address, single outcome, normalized email, hex hash, cascade |
 | `UserManagementSchemaIT` | V4: suspension needs a reason, status and revoke-reason checks, SET NULL on the actor, ADMIN holds `user:*`, one email index serving equality and prefix |
 | `BoundedPasswordEncoderTest` | Concurrency cap honoured, fails fast with 503, permits always returned |

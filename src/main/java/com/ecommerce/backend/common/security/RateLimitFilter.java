@@ -2,9 +2,7 @@ package com.ecommerce.backend.common.security;
 
 import com.ecommerce.backend.common.exception.ErrorCode;
 import com.ecommerce.backend.common.exception.ProblemDetails;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import io.github.bucket4j.Bucket;
+import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.ConsumptionProbe;
 import io.github.bucket4j.TimeMeter;
 import jakarta.servlet.FilterChain;
@@ -54,25 +52,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private final List<CompiledRule> rules;
-    private final Cache<String, Bucket> buckets;
+    private final BucketStore buckets;
     private final ProblemResponseWriter writer;
-    private final TimeMeter timeMeter;
 
+    /** In-memory buckets: one server, and the unit tests. */
     RateLimitFilter(RateLimitProperties properties, ProblemResponseWriter writer, TimeMeter timeMeter) {
+        this(properties, writer, new LocalBucketStore(properties.maxTrackedClients(), longestPeriod(properties), timeMeter));
+    }
+
+    RateLimitFilter(RateLimitProperties properties, ProblemResponseWriter writer, BucketStore buckets) {
         this.rules = properties.rules().stream()
                 .map(rule -> new CompiledRule(rule, Set.copyOf(rule.paths())))
                 .toList();
-        Duration longestPeriod = properties.rules().stream()
+        this.buckets = buckets;
+        this.writer = writer;
+    }
+
+    static Duration longestPeriod(RateLimitProperties properties) {
+        return properties.rules().stream()
                 .map(RateLimitProperties.Rule::period)
                 .max(Comparator.naturalOrder())
                 .orElse(Duration.ofMinutes(1));
-        // A bucket untouched for a full period is full again, so forgetting it changes nothing.
-        this.buckets = Caffeine.newBuilder()
-                .maximumSize(properties.maxTrackedClients())
-                .expireAfterAccess(longestPeriod)
-                .build();
-        this.writer = writer;
-        this.timeMeter = timeMeter;
     }
 
     @Override
@@ -95,8 +95,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // remoteAddr is the real client only because prod trusts the load balancer's
         // X-Forwarded-For via server.forward-headers-strategy. Never parse that header here.
         String key = rule.name() + "|" + request.getRemoteAddr();
-        Bucket bucket = buckets.get(key, k -> newBucket(rule));
-        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+        ConsumptionProbe probe;
+        try {
+            probe = buckets.bucket(key, () -> configuration(rule)).tryConsumeAndReturnRemaining(1);
+        } catch (RuntimeException e) {
+            // Fail open: with the shared store down, refusing everyone would turn a Redis outage into a
+            // site outage. Login stays protected by the per-account lockout and the bounded hashing.
+            log.error("Rate limit store unavailable, request let through: rule={}", rule.name(), e);
+            chain.doFilter(request, response);
+            return;
+        }
 
         response.setHeader(LIMIT_HEADER, String.valueOf(rule.capacity()));
         response.setHeader(REMAINING_HEADER, String.valueOf(probe.getRemainingTokens()));
@@ -114,10 +122,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 "Too many requests. Try again in " + retryAfterSeconds + " seconds.", path));
     }
 
-    private Bucket newBucket(RateLimitProperties.Rule rule) {
-        return Bucket.builder()
+    private static BucketConfiguration configuration(RateLimitProperties.Rule rule) {
+        return BucketConfiguration.builder()
                 .addLimit(limit -> limit.capacity(rule.capacity()).refillGreedy(rule.capacity(), rule.period()))
-                .withCustomTimePrecision(timeMeter)
                 .build();
     }
 }
