@@ -27,4 +27,4 @@ Option 3b. org publishes `OrganizationStatusChanged` (a record in its public roo
 - No window in which a suspended seller is still selling, and no cycle between modules.
 - A slow or failing listener slows or fails the status change itself. Acceptable: one indexed bulk update per seller. A listener must never call external systems; those reactions (emails, search index) belong after commit.
 - A seller with very many products makes its suspension one larger transaction. If that ever matters, the listener can batch.
-- Phase 13 (events) introduces an outbox for after-commit, cross-process events. Invariants that must hold at commit, like this one, stay in-transaction.
+- Phase 13 introduced an outbox for emails ([ADR-015](ADR-015-email-outbox.md)). Invariants that must hold at commit, like this one, stay in-transaction.

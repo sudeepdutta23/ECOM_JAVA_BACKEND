@@ -129,7 +129,10 @@ class QueryPlanIT extends AbstractIntegrationTest {
             // Phase 12: what each background job reads, so a round never scans a growing table.
             "job: unpaid orders, oldest     | SELECT id FROM orders WHERE status = 'PENDING_PAYMENT' AND created_at < now() ORDER BY created_at LIMIT 200 | idx_orders_pending_payment",
             "job: expired refresh tokens    | SELECT id FROM refresh_tokens WHERE expires_at < now() LIMIT 1000 | idx_refresh_tokens_expires_at",
-            "job: old notifications         | SELECT id FROM notifications WHERE created_at < now() LIMIT 1000 | idx_notifications_created_at"
+            "job: old notifications         | SELECT id FROM notifications WHERE created_at < now() LIMIT 1000 | idx_notifications_created_at",
+            // Phase 13: the outbox relay's claim, and erasure's sweep by address.
+            "outbox: due emails             | SELECT id FROM email_outbox WHERE status = 'PENDING' AND next_attempt_at <= now() ORDER BY next_attempt_at LIMIT 10 | idx_email_outbox_due",
+            "outbox: by recipient (erasure) | SELECT id FROM email_outbox WHERE lower(recipient) = lower('a@b.test') | idx_email_outbox_recipient"
     })
     void hotQueryUsesItsIndex(String name, String sql, String expectedIndex) {
         String plan = tx.execute(status -> {

@@ -40,7 +40,7 @@ com.ecommerce.backend
   common/            shared kernel, no business logic
     config/          OpenAPI, Clock, JPA auditing, async (MDC propagation)
     exception/       ErrorCode, BusinessException, ProblemDetails, GlobalExceptionHandler
-    mail/            EmailSender abstraction
+    mail/            EmailSender abstraction, email outbox and its relay
     persistence/     BaseEntity, UUID v7 generator
     response/        ApiResponse envelope, FieldErrorDetail
     security/        SecurityConfig, CORS, headers, 401/403 handlers, rate limiting
@@ -121,3 +121,4 @@ It found one violation when it was introduced: `PermissionController` read its r
 | Schema | Flyway migrations; Hibernate only validates |
 | Health | Spring Boot Actuator |
 | Background jobs | `@Scheduled` + ShedLock (one server per round), small batches, short transactions ([modules/JOBS.md](modules/JOBS.md)) |
+| Durable emails | Transactional outbox in PostgreSQL, relay with `SKIP LOCKED` ([modules/EVENTS.md](modules/EVENTS.md), [ADR-015](adr/ADR-015-email-outbox.md)) |

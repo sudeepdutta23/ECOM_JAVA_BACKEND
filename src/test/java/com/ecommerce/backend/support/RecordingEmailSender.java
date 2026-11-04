@@ -1,8 +1,11 @@
 package com.ecommerce.backend.support;
 
+import com.ecommerce.backend.common.mail.EmailDeliveryException;
 import com.ecommerce.backend.common.mail.EmailMessage;
 import com.ecommerce.backend.common.mail.EmailSender;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,10 +21,23 @@ public class RecordingEmailSender implements EmailSender {
     private static final Pattern TOKEN = Pattern.compile("token=([A-Za-z0-9_-]{43})");
 
     private final List<EmailMessage> sent = new CopyOnWriteArrayList<>();
+    private final Set<String> unreachable = ConcurrentHashMap.newKeySet();
 
     @Override
     public void send(EmailMessage message) {
+        if (unreachable.contains(message.to().toLowerCase())) {
+            throw new EmailDeliveryException("Simulated outage", null);
+        }
         sent.add(message);
+    }
+
+    /** Every email to this address fails, as if its mail server were down. */
+    public void failFor(String recipient) {
+        unreachable.add(recipient.toLowerCase());
+    }
+
+    public void recover(String recipient) {
+        unreachable.remove(recipient.toLowerCase());
     }
 
     public List<EmailMessage> sentTo(String recipient) {

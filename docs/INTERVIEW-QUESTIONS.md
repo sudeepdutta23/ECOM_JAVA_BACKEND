@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-245 questions so far.
+253 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -25,6 +25,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 10: Search, filtering, pagination](#phase-10-search-filtering-pagination) | 8 | [modules/SEARCH.md](modules/SEARCH.md) |
 | [Phase 11: Redis](#phase-11-redis) | 8 | [modules/REDIS.md](modules/REDIS.md) |
 | [Phase 12: Background jobs](#phase-12-background-jobs) | 8 | [modules/JOBS.md](modules/JOBS.md) |
+| [Phase 13: Events and the email outbox](#phase-13-events-and-the-email-outbox) | 8 | [modules/EVENTS.md](modules/EVENTS.md) |
 
 ## Phase 0: Setup
 
@@ -445,4 +446,19 @@ Design: [modules/JOBS.md](modules/JOBS.md).
 6. Why delete old rows in batches of a thousand instead of one DELETE?
 7. Why should each job's query have its own (often partial) index?
 8. Why are jobs switched off in tests, and how are they tested then?
+
+## Phase 13: Events and the email outbox
+
+Design: [modules/EVENTS.md](modules/EVENTS.md), [ADR-015](adr/ADR-015-email-outbox.md).
+
+### Steps 13.1 and 13.2: Outbox and review
+
+1. What is the dual-write problem, and why does publishing to Kafka after commit not solve it?
+2. Explain the transactional outbox pattern. What makes the email and the order change atomic?
+3. How does `FOR UPDATE SKIP LOCKED` let several servers drain one queue table without sending twice?
+4. Why claim rows with a lease and send outside the transaction, instead of holding the row lock while sending?
+5. Why is outbox delivery "at least once" and not "exactly once"? How would a consumer make duplicates harmless?
+6. Why are emails with one-time links kept out of the outbox, and what is the cost of that choice?
+7. When would you choose in-transaction listeners, an outbox, or best-effort after-commit listeners?
+8. When would you add a message broker to this system, and what would the outbox then publish?
 

@@ -35,7 +35,7 @@ One class (`OrderMessages`) renders every message, so the inbox and the email ne
 | Channel | When | Guarantee |
 |---|---|---|
 | Inbox | `@EventListener`, inside the order change's transaction | Commits with the change, or neither does: no notification about a payment that rolled back, none lost |
-| Email | `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` | Never for a rolled-back change, never slows a checkout. Best effort: a crash between commit and send loses the email (the inbox still has it); Phase 13's outbox makes it durable |
+| Email | Written to the email outbox in the order's transaction, sent after commit ([EVENTS.md](EVENTS.md)) | Never for a rolled-back change, never slows a checkout, survives crashes and mail outages (at least once) |
 
 The in-app write joins the order's transaction deliberately: if the database cannot store the notification, it cannot store the order change either.
 

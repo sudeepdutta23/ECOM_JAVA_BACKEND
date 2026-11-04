@@ -162,7 +162,7 @@ Privacy law (GDPR Art. 17 and similar) gives people the right to have their pers
 
 **Access tokens** issued before erasure remain valid for up to 15 minutes, as after any sign-out, but `/me` returns 401 for an erased account, and every write path requires an active account.
 
-**Confirmation email.** The old address travels only in the `AccountErased` event, so that one confirmation can be sent after commit. After that the address exists nowhere in the system. Logs carry only the user ID.
+**Confirmation email.** The old address travels only in the `AccountErased` event, so that one confirmation can be sent after commit. Erasure also deletes any email still waiting in the outbox for that address, and the confirmation itself is deliberately not queued there. After that the address exists nowhere in the system. Logs carry only the user ID.
 
 **Organisations (Phase 4).** The only owner of an open organisation cannot be erased or deactivated (409 `ORG_LAST_OWNER`): hand over or close first. Erasure deletes every membership and every invitation sent to the address (`org.service.MemberDeparture`, same transaction).
 
@@ -172,7 +172,7 @@ Privacy law (GDPR Art. 17 and similar) gives people the right to have their pers
 
 **Notifications (Phase 7).** Erasure deletes the inbox and the preferences (`notification.service.NotificationEraser`); an erased account gets no new notifications.
 
-**Not covered yet.** Files (Phase 8) and audit entries (Phase 9) belong to their modules; each will react to `AccountErased` (Phase 13 events). Database backups still hold the old data until they expire; the retention period of backups is part of the privacy policy, not of this code.
+**Not covered yet.** Files (Phase 8) and audit entries (Phase 9) belong to their modules; neither holds personal data of the erased person: images belong to sellers, and audit entries keep only the actor's ID. Database backups still hold the old data until they expire; the retention period of backups is part of the privacy policy, not of this code.
 
 ## 10. Plan
 

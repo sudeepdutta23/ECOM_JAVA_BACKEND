@@ -10,28 +10,31 @@ import com.ecommerce.backend.auth.event.RefreshTokenReuseDetected;
 import com.ecommerce.backend.auth.event.VerificationEmailRequested;
 import com.ecommerce.backend.auth.service.AuthProperties;
 import com.ecommerce.backend.common.mail.EmailMessage;
+import com.ecommerce.backend.common.mail.EmailOutbox;
 import com.ecommerce.backend.common.mail.EmailSender;
 import com.ecommerce.backend.common.util.Masking;
 import java.time.temporal.ChronoUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Sends auth emails after the database transaction has committed.
+ * Sends auth emails, in one of two ways:
  *
- * <p><b>AFTER_COMMIT:</b> if registration rolls back, no email goes out with a link to an
- * account that does not exist.
- *
- * <p><b>@Async:</b> SMTP can take hundreds of milliseconds or hang. Running on a pool thread
- * keeps the HTTP response fast, and makes "new account" and "existing account" responses take
- * the same time, which hides whether an email is registered.
- *
- * <p><b>Known trade-off:</b> if the process dies between commit and send, the email is lost.
- * The user can request a new link. Phase 13 replaces this with a transactional outbox.
+ * <ul>
+ *   <li><b>Security notices</b> (duplicate registration, lockout, token reuse, password change,
+ *       deactivation) go to the {@link EmailOutbox} in the caller's transaction: they exist exactly
+ *       when the change committed, and a crash after commit loses none.</li>
+ *   <li><b>One-time links</b> (verification, password reset) and the erasure confirmation are sent
+ *       after commit ({@code AFTER_COMMIT}, so a rolled-back registration mails no link) on a pool
+ *       thread ({@code @Async}, so SMTP never slows the response, and "new account" and "existing
+ *       account" take the same time). Best effort, on purpose: the outbox would store a raw token,
+ *       or an erased person's address. A lost link can be requested again.</li>
+ * </ul>
  */
 @Component
 class AuthEmailListener {
@@ -39,10 +42,12 @@ class AuthEmailListener {
     private static final Logger log = LoggerFactory.getLogger(AuthEmailListener.class);
 
     private final EmailSender emailSender;
+    private final EmailOutbox outbox;
     private final AuthProperties properties;
 
-    AuthEmailListener(EmailSender emailSender, AuthProperties properties) {
+    AuthEmailListener(EmailSender emailSender, EmailOutbox outbox, AuthProperties properties) {
         this.emailSender = emailSender;
+        this.outbox = outbox;
         this.properties = properties;
     }
 
@@ -62,10 +67,9 @@ class AuthEmailListener {
                 """.formatted(link, properties.emailVerificationTtl().toHours())));
     }
 
-    @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void onDuplicateRegistrationAttempted(DuplicateRegistrationAttempted event) {
-        send(new EmailMessage(event.email(), "Someone tried to register with your email", """
+        outbox.enqueue(new EmailMessage(event.email(), "Someone tried to register with your email", """
                 Someone just tried to create an account with this email address,
                 but you already have one.
 
@@ -76,10 +80,9 @@ class AuthEmailListener {
                 """.formatted(properties.frontendBaseUrl())));
     }
 
-    @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void onAccountLocked(AccountLocked event) {
-        send(new EmailMessage(event.email(), "Your account was temporarily locked", """
+        outbox.enqueue(new EmailMessage(event.email(), "Your account was temporarily locked", """
                 We locked your account after several unsuccessful sign-in attempts.
 
                 It unlocks automatically at %s (UTC). You do not need to do anything.
@@ -91,10 +94,9 @@ class AuthEmailListener {
                 properties.frontendBaseUrl())));
     }
 
-    @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void onRefreshTokenReuseDetected(RefreshTokenReuseDetected event) {
-        send(new EmailMessage(event.email(), "We signed you out of a session for your security", """
+        outbox.enqueue(new EmailMessage(event.email(), "We signed you out of a session for your security", """
                 We noticed an old sign-in token being reused, which can mean it was copied
                 from one of your devices. To protect you, we ended that session.
 
@@ -117,10 +119,9 @@ class AuthEmailListener {
                 """.formatted(link, properties.passwordResetTtl().toMinutes())));
     }
 
-    @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void onPasswordChanged(PasswordChanged event) {
-        send(new EmailMessage(event.email(), "Your password was changed", """
+        outbox.enqueue(new EmailMessage(event.email(), "Your password was changed", """
                 The password for your account was just changed, and every device was signed out.
 
                 If this was you, no action is needed.
@@ -129,10 +130,9 @@ class AuthEmailListener {
                 """.formatted(properties.frontendBaseUrl())));
     }
 
-    @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void onAccountDeactivated(AccountDeactivated event) {
-        send(new EmailMessage(event.email(), "Your account was deactivated", """
+        outbox.enqueue(new EmailMessage(event.email(), "Your account was deactivated", """
                 Your account was deactivated and every device was signed out.
 
                 If you did not do this, contact support so we can secure your account.
@@ -155,7 +155,7 @@ class AuthEmailListener {
         try {
             emailSender.send(message);
         } catch (RuntimeException e) {
-            // Never propagate: the registration already succeeded. Log for operators.
+            // Never propagate: the change already committed. Log for operators.
             log.error("Failed to send email: to={}, subject={}", Masking.email(message.to()), message.subject(), e);
         }
     }

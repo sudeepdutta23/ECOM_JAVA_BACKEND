@@ -210,6 +210,10 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 
 `shedlock`: one lock row per scheduled job. V21 adds the `ORDER_EXPIRED` notification type and the indexes the jobs read: `idx_orders_pending_payment (created_at) WHERE status = 'PENDING_PAYMENT'`, `idx_notifications_created_at`, `idx_account_tokens_consumed_at`. Details: [modules/JOBS.md](modules/JOBS.md).
 
+## Phase 13 changes (V22, email outbox)
+
+`email_outbox`: emails written in the business transaction and sent after commit; a sent row is deleted. `idx_email_outbox_due (next_attempt_at) WHERE status = 'PENDING'` serves the relay's claim, `idx_email_outbox_recipient (lower(recipient))` account erasure. Details: [modules/EVENTS.md](modules/EVENTS.md).
+
 ## Migration history
 
 | Version | Description |
@@ -235,3 +239,4 @@ Details: [modules/CATALOG.md](modules/CATALOG.md#8-data-model-v13).
 | V19 | products.search_vector (generated), GIN search index, price index |
 | V20 | shedlock (job locks) |
 | V21 | `ORDER_EXPIRED` notification type; indexes for the jobs |
+| V22 | email_outbox |

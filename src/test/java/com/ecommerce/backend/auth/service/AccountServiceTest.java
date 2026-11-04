@@ -20,6 +20,7 @@ import com.ecommerce.backend.auth.repository.UserRepository;
 import com.ecommerce.backend.auth.repository.UserSummary;
 import com.ecommerce.backend.common.exception.BusinessException;
 import com.ecommerce.backend.common.exception.ErrorCode;
+import com.ecommerce.backend.common.mail.EmailOutbox;
 import com.ecommerce.backend.notification.service.NotificationEraser;
 import com.ecommerce.backend.order.service.OrderEraser;
 import com.ecommerce.backend.org.service.MemberDeparture;
@@ -61,7 +62,7 @@ class AccountServiceTest {
                 new FailedLoginRecorder(users, events, noTx, TestAuthProperties.defaults()));
         AccountEraser eraser = new AccountEraser(refreshTokenRows, accountTokens, roleAssignments, departure,
             profiles, mock(OrderEraser.class),
-            mock(NotificationEraser.class), events);
+            mock(NotificationEraser.class), mock(EmailOutbox.class), events);
         service = new AccountService(users, check, refreshTokens, events, roleAssignments, eraser, departure, noTx,
                 Clock.fixed(NOW, ZoneOffset.UTC));
 

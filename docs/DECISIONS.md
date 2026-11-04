@@ -18,6 +18,7 @@ An ADR records one significant decision: the context, the choice, and its conseq
 | [ADR-012](adr/ADR-012-tenancy-model.md) | Marketplace tenancy with shared tables and explicit organisation scoping | Accepted |
 | [ADR-013](adr/ADR-013-in-transaction-module-events.md) | In-transaction events between modules (seller status to the catalogue) | Accepted |
 | [ADR-014](adr/ADR-014-search-in-postgresql.md) | Storefront search in PostgreSQL full text, not a search server (yet) | Accepted |
+| [ADR-015](adr/ADR-015-email-outbox.md) | A transactional outbox for emails, not a message broker | Accepted |
 
 Template for new ADRs:
 

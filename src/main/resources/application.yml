@@ -224,6 +224,8 @@ app:
     bootstrap-admin-email: ${APP_RBAC_BOOTSTRAP_ADMIN_EMAIL:}
   mail:
     from: ${MAIL_FROM:Ecommerce <no-reply@ecommerce.local>}
+    outbox:
+      poll-interval: PT10S   # retries and crash recovery; new emails are sent right after commit
   security:
     jwt:
       issuer: ${JWT_ISSUER:ecommerce-backend}
