@@ -159,6 +159,12 @@ Set `app.security.password-hashing.max-concurrent` and `app.auth.failed-login-mi
 - The actor comes from the access token; entries carry IDs, the request ID and the client IP, never reasons or personal data.
 - `audit_events` is append-only in the database itself (trigger), so a compromised application account cannot rewrite history. Reading needs `audit:read`.
 
+## Client address behind a load balancer (Phase 18)
+
+Rate limits, the audit log and session records all use `remoteAddr`. In production Tomcat sets it from `X-Forwarded-For` (`server.forward-headers-strategy: native`), reading from the right and stopping at the first address that is not a trusted proxy.
+
+The earlier setting, `framework`, took the leftmost value, which the client controls: a random value per request gave a fresh rate-limit bucket and a forged address in the audit log. `ForwardedHeadersIT` failed against it and passes now. The load balancer must be the only way to reach the application's port ([PRODUCTION-READINESS.md](PRODUCTION-READINESS.md)).
+
 ## Never log
 
 Passwords, password hashes, JWTs, refresh tokens, reset tokens, secrets, full card or ID numbers. Personal data: emails, names, phone numbers, addresses (log the user ID instead; entities and DTOs that hold such data override `toString`).

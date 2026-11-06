@@ -95,8 +95,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         RateLimitProperties.Rule rule = match.rule();
-        // remoteAddr is the real client only because prod trusts the load balancer's
-        // X-Forwarded-For via server.forward-headers-strategy. Never parse that header here.
+        // remoteAddr is the real client only because prod has Tomcat resolve X-Forwarded-For from its
+        // trusted end (server.forward-headers-strategy: native). Never parse that header here.
         String key = rule.name() + "|" + request.getRemoteAddr();
         ConsumptionProbe probe;
         try {

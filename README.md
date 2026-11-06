@@ -42,6 +42,8 @@ curl http://localhost:8080/actuator/health
 
 Stop the database with `docker compose down`. Add `-v` to also delete its data volume.
 
+If startup fails with `Port 8080 was already in use`, another program has that port. Set `SERVER_PORT=8090` in `.env` and use that port in the URLs below.
+
 ### Everything in containers
 
 ```bash
@@ -154,6 +156,7 @@ docs/                     architecture, security, database, ADRs
 - [Database](docs/DATABASE.md)
 - [Security](docs/SECURITY.md)
 - [Testing](docs/TESTING.md)
+- [Production readiness](docs/PRODUCTION-READINESS.md): what still blocks real customers, and the runbook
 - [Decisions (ADRs)](docs/DECISIONS.md)
 - [Interview questions](docs/INTERVIEW-QUESTIONS.md): every step's questions in one place
 

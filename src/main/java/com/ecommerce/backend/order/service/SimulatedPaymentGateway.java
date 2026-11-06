@@ -20,6 +20,11 @@ class SimulatedPaymentGateway implements PaymentGateway {
 
     private static final Logger log = LoggerFactory.getLogger(SimulatedPaymentGateway.class);
 
+    /** Impossible to miss in any environment's logs: with this gateway, nothing is really charged. */
+    SimulatedPaymentGateway() {
+        log.warn("SIMULATED PAYMENTS: orders are not really charged. Never use app.payment.provider=simulated with real customers");
+    }
+
     @Override
     public Charge charge(UUID idempotencyKey, long amountMinor, String currency, String paymentToken) {
         if (DECLINING_TOKEN.equals(paymentToken)) {

@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-292 questions so far.
+302 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -30,6 +30,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 15: Performance](#phase-15-performance) | 10 | [modules/PERFORMANCE.md](modules/PERFORMANCE.md) |
 | [Phase 16: Docker](#phase-16-docker) | 10 | [modules/DOCKER.md](modules/DOCKER.md) |
 | [Phase 17: CI/CD](#phase-17-cicd) | 10 | [modules/CICD.md](modules/CICD.md) |
+| [Phase 18: Production readiness](#phase-18-production-readiness) | 10 | [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md) |
 
 ## Phase 0: Setup
 
@@ -532,4 +533,21 @@ Design: [modules/CICD.md](modules/CICD.md).
 8. Why should a vulnerability exception have an expiry date?
 9. Why was `mvnw` failing on Linux while working on Windows, and how is a file mode stored in git?
 10. Why does a rolling deployment require every migration to stay compatible with the previous version?
+
+## Phase 18: Production readiness
+
+Design: [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md).
+
+### Steps 18.1 and 18.2: Audit and runbook
+
+1. Behind a load balancer, which part of `X-Forwarded-For` can you trust, and why? How would you exploit trusting the wrong end?
+2. What is the difference between `server.forward-headers-strategy` `native` and `framework`?
+3. Why must the load balancer be the only way to reach the application's port?
+4. How do you roll back when the new version has already migrated the schema? What does "expand, then contract" mean?
+5. Rename a column with no downtime: walk through the releases.
+6. You restore yesterday's backup. What about the people who asked to be erased since? And the payments taken?
+7. What happens to signed-in users when the JWT signing key is rotated with a single key? How would two valid keys improve it?
+8. The signing key has leaked. What exactly do you do, and in what order?
+9. Why should liveness never check the database, and what should readiness check?
+10. What must exist before real customers use a system, beyond the code passing its tests?
 

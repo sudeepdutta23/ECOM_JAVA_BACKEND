@@ -45,4 +45,4 @@ The same image, with the `prod` profile (the default) and configuration from the
 | `MANAGEMENT_PORT` | Default 8081: probes and metrics, never public |
 | `FILES_LOCAL_DIR` | Default `/var/lib/ecommerce/files`; a persistent volume, or one shared by all instances (S3 behind `FileStorage` for a cluster) |
 
-Probes (on the management port): liveness `/actuator/health/liveness`, readiness `/actuator/health/readiness`. Give the container a memory limit; the heap follows it. Logs are JSON on stdout.
+The load balancer must be the only way to reach port 8080 ([runbook](../PRODUCTION-READINESS.md#deploy)). Probes (on the management port): liveness `/actuator/health/liveness`, readiness `/actuator/health/readiness`. Give the container a memory limit; the heap follows it. Logs are JSON on stdout.

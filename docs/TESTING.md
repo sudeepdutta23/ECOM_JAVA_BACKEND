@@ -102,6 +102,7 @@ Integration tests start PostgreSQL and Redis with Testcontainers, so Docker must
 | `SharedRateLimitIT` | Two stores (two servers) against one Redis share a client's bucket: exactly the limit gets through; other clients have their own buckets |
 | `CatalogCacheIT` | The category list is cached and a new category shows at once; a suspended seller's cached product page disappears at once |
 | `NoUnusedVulnerableFeaturesTest` (unit) | Nothing uses `XsltView` or SSE, the features behind the two accepted vulnerabilities in `.trivyignore.yaml` |
+| `ForwardedHeadersIT` | The production proxy setup: a spoofed left end of `X-Forwarded-For` gets no fresh rate-limit bucket; different clients behind the load balancer keep separate limits; `X-Forwarded-Proto: https` counts as secure |
 | `QueryCountIT` | No N+1: the storefront, customer and seller order lists, seller product list, inbox and cart prepare as many SQL statements for one row as for a full page, within a budget per endpoint |
 | `DatabaseGuardsIT` | Every pooled connection has a 15 s statement timeout and a 60 s idle-in-transaction timeout; the server cancels an overlong statement; a `SET LOCAL` lift ends with its transaction |
 | `ObservabilityIT` | The production layout (actuator on its own port, metrics export on): the scrape is served there with HTTP, pool, JVM, outbox and login meters and no email in any label; it is not reachable on the public port; probes answer, `env` and `heapdump` do not |

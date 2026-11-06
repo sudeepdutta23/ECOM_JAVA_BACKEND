@@ -46,7 +46,7 @@ Repository settings to apply once (not in code): protect `main` (require the `Bu
 
 ## 4. Deployment
 
-Continuous delivery stops at the registry: there is no hosting environment in this project yet. A deployment takes a published tag and runs it with the production settings of [DOCKER.md](DOCKER.md); Flyway migrates the schema at startup, so every migration must stay compatible with the version still running (expand, then contract) for rolling updates. Phase 18 lists what a production environment needs.
+Continuous delivery stops at the registry: there is no hosting environment in this project yet. A deployment takes a published tag and runs it with the production settings of [DOCKER.md](DOCKER.md); Flyway migrates the schema at startup, so every migration must stay compatible with the version still running (expand, then contract) for rolling updates. [PRODUCTION-READINESS.md](../PRODUCTION-READINESS.md) lists what a production environment needs.
 
 ## 5. Running the same checks locally
 

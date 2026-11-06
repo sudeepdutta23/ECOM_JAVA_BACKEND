@@ -7,6 +7,10 @@ spring:
   application:
     name: ecommerce-backend
 
+  # In-flight requests get this long after SIGTERM; below the 30 s most orchestrators wait before killing.
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
   profiles:
     # Used only when SPRING_PROFILES_ACTIVE is not set
     default: dev

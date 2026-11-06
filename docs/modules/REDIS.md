@@ -17,7 +17,7 @@ Two things need state shared by every server:
 
 - **One bucket per client and rule**, key `rate-limit:{rule}|{client address}`, shared by every server. Bucket4j updates it with compare-and-swap, so two servers taking the last token at the same moment cannot both succeed. `SharedRateLimitIT` alternates requests between two stores (two "servers") against one Redis: exactly the limit gets through, not twice it.
 - **Keys expire** once the bucket would be full again, so Redis holds only clients active in the last period.
-- **The client address** is still `remoteAddr`, made the real client by `server.forward-headers-strategy` in production; the filter never parses `X-Forwarded-For` itself.
+- **The client address** is still `remoteAddr`, made the real client by `server.forward-headers-strategy: native` in production (`ForwardedHeadersIT`); the filter never parses `X-Forwarded-For` itself.
 - **Fail open.** When Redis cannot be reached, the request goes through and the failure is logged (`Rate limit store unavailable`). Failing closed would turn a Redis outage into a full outage. During such an outage the per-account login lockout (Phase 1) and the bounded password hashing still protect sign-in.
 
 ## 3. The read cache

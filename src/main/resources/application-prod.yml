@@ -18,7 +18,12 @@ spring:
       mail.smtp.starttls.required: true
 
 server:
-  forward-headers-strategy: framework   # trust X-Forwarded-* from the load balancer for HTTPS detection
+  # Tomcat reads X-Forwarded-For from the right and stops at the first address that is not a trusted proxy,
+  # so a value the client sent cannot become its address (rate limits, audit log, sessions). "framework" takes
+  # the leftmost value, which the client controls: never use it here.
+  # Trusted: private ranges by default; if the load balancer has a public address, set
+  # SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES. Only the load balancer may reach this port.
+  forward-headers-strategy: native
 
 # The actuator (probes, metrics) on its own port, which the load balancer must never publish.
 management:
