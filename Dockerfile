@@ -21,8 +21,10 @@ RUN --mount=type=cache,target=/root/.m2 sh ./mvnw -B -q package -DskipTests \
 # ---------------------------------------------------------------- runtime
 FROM eclipse-temurin:21-jre-alpine
 
-# A fixed, unprivileged user: never root, and the same UID everywhere for volume permissions.
-RUN addgroup -S -g 10001 app \
+# Security fixes released since the base image was built; then a fixed, unprivileged user: never root,
+# and the same UID everywhere for volume permissions.
+RUN apk upgrade --no-cache \
+ && addgroup -S -g 10001 app \
  && adduser -S -u 10001 -G app -H -s /sbin/nologin app \
  && mkdir -p /var/lib/ecommerce/files \
  && chown app:app /var/lib/ecommerce/files

@@ -1,0 +1,22 @@
+# Weekly pull requests for outdated dependencies; each one runs the full CI before it can be merged.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Spring Boot manages most versions: one PR for the parent and the libraries it aligns.
+      spring:
+        patterns: ["org.springframework*", "io.micrometer*", "io.opentelemetry*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

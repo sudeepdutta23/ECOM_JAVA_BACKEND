@@ -8,7 +8,7 @@ this file in the same change.
 against the code and the module document linked under each phase. A good answer names the trade-off,
 not just the choice: what was gained, what it cost, and when the other option would win.
 
-282 questions so far.
+292 questions so far.
 
 | Phase | Questions | Design document |
 |---|---|---|
@@ -29,6 +29,7 @@ not just the choice: what was gained, what it cost, and when the other option wo
 | [Phase 14: Observability](#phase-14-observability) | 9 | [modules/OBSERVABILITY.md](modules/OBSERVABILITY.md) |
 | [Phase 15: Performance](#phase-15-performance) | 10 | [modules/PERFORMANCE.md](modules/PERFORMANCE.md) |
 | [Phase 16: Docker](#phase-16-docker) | 10 | [modules/DOCKER.md](modules/DOCKER.md) |
+| [Phase 17: CI/CD](#phase-17-cicd) | 10 | [modules/CICD.md](modules/CICD.md) |
 
 ## Phase 0: Setup
 
@@ -514,4 +515,21 @@ Design: [modules/DOCKER.md](modules/DOCKER.md).
 8. What do `read_only`, `cap_drop: ALL` and `no-new-privileges` protect against?
 9. Why are tests not run inside `docker build`?
 10. How do secrets reach a container without being baked into an image layer?
+
+## Phase 17: CI/CD
+
+Design: [modules/CICD.md](modules/CICD.md).
+
+### Steps 17.1 and 17.2: Pipeline and review
+
+1. What is the difference between continuous integration, continuous delivery and continuous deployment? Which does this pipeline do?
+2. Why build the image once and promote it by tag, instead of rebuilding for each environment?
+3. Why must pull requests from forks never be able to publish an image? How does the workflow prevent it?
+4. Why give the workflow token read-only permissions by default?
+5. Tags or commit SHAs for third-party actions: what is the supply-chain risk, and what does each cost?
+6. Why fail only on vulnerabilities that have a fix? What does that choice hide?
+7. A critical CVE has no fix on your release line. What are your options, and what makes an exception defensible?
+8. Why should a vulnerability exception have an expiry date?
+9. Why was `mvnw` failing on Linux while working on Windows, and how is a file mode stored in git?
+10. Why does a rolling deployment require every migration to stay compatible with the previous version?
 

@@ -1,0 +1,13 @@
+# Accepted vulnerabilities, each with its reason and an expiry: on that date the scan fails again
+# and the decision must be renewed or the dependency upgraded. Design: docs/modules/CICD.md
+vulnerabilities:
+  - id: CVE-2026-47884
+    statement: >-
+      Spring MVC XsltView. Fixed only in Spring Framework 7 (Spring Boot 4). This API renders no views,
+      and NoUnusedVulnerableFeaturesTest fails the build if XsltView is ever used. Close by moving to Boot 4.
+    expired_at: 2027-02-01
+  - id: CVE-2026-47890
+    statement: >-
+      Server-Sent Events with view rendering. Fixed only in Spring Framework 7 (Spring Boot 4). This API
+      streams no SSE, and NoUnusedVulnerableFeaturesTest fails the build if SseEmitter is ever used.
+    expired_at: 2027-02-01
