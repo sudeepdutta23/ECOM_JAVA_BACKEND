@@ -25,7 +25,7 @@ concurrency:
 jobs:
   test:
     name: Build and test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +54,7 @@ jobs:
   image:
     name: Image
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -88,7 +88,8 @@ jobs:
 
       # Fail on critical and high vulnerabilities that have a fix: those are actionable now.
       - name: Scan
-        uses: aquasecurity/trivy-action@0.28.0
+        # Pinned by commit: this third-party action's tags have changed before. Dependabot proposes updates.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           # The first tag is the commit SHA; the action's tags are already lower-cased.
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}

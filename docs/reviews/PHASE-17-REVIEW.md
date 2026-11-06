@@ -10,6 +10,7 @@
 |---|---|---|
 | `mvnw` stored without its executable bit | `./mvnw` fails with "permission denied" on every Linux runner | Mode 100755 in git |
 | Scan step named the image by repository, which contains capitals | Invalid image reference | Uses the first tag from the metadata action, already lower-cased |
+| `trivy-action@0.28.0`, pinned from memory, does not exist (found by the first run on GitHub) | The `Image` job could not start | Pinned to `v0.36.0` by commit SHA |
 | Dependencies with known vulnerabilities | Local scan: 12 critical and 32 high in Java libraries, 3 high in Alpine | See section 2 |
 
 ## 2. Vulnerabilities
@@ -48,7 +49,7 @@ On the expiry date the scan fails again, and the decision must be renewed or clo
 |---|---|
 | A workflow token that can do too much | Read-only by default; only the image job may write packages |
 | Pull requests from forks publishing images | Login and publish run only for pushes to `main` and tags |
-| A compromised action version | Tags, not commit SHAs, updated weekly by Dependabot. Pinning by SHA is the stronger next step |
+| A compromised action version | The third-party scanner is pinned by commit SHA; first-party `actions/*` and `docker/*` use major tags. All updated weekly by Dependabot |
 | Vulnerabilities appearing after a build | Only scanned when CI runs. A scheduled nightly scan of the published image is the next step |
 | The Spring Boot 3.5.16 BOM lags behind security patches | The overrides close the gap but must be maintained by hand; moving to Boot 4 is the real answer |
 
