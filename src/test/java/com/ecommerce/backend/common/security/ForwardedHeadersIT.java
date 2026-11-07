@@ -66,6 +66,27 @@ class ForwardedHeadersIT extends AbstractIntegrationTest {
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
+    /** Without CORS headers on the 429, a browser reports a network error and hides Retry-After from the page. */
+    @Test
+    void aBrowserCanReadARateLimitRejection() {
+        String client = "203.0.113.10";
+        for (int i = 0; i < LOGIN_CAPACITY; i++) {
+            login(client);
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Forwarded-For", client);
+        headers.setOrigin("http://localhost:3000");
+
+        ResponseEntity<String> response = rest.postForEntity("/api/v1/auth/login", new HttpEntity<>(
+                Map.of("email", "nobody@forwarded.test", "password", "wrong-password-1"), headers), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("http://localhost:3000");
+        assertThat(response.getHeaders().getAccessControlExposeHeaders()).contains("Retry-After");
+        assertThat(response.getHeaders().get("Access-Control-Allow-Origin")).as("once, not doubled by the later filter").hasSize(1);
+    }
+
     @Test
     void aRequestTheLoadBalancerReceivedOverHttpsCountsAsSecure() {
         HttpHeaders headers = new HttpHeaders();

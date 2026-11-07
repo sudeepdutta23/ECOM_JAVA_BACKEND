@@ -142,7 +142,9 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(allowedOrigins.stream().map(String::strip).filter(o -> !o.isEmpty()).toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE, "X-Request-Id"));
+        // Idempotency-Key: without it, a browser's preflight refuses every checkout.
+        config.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE, "X-Request-Id",
+                "Idempotency-Key"));
         config.setExposedHeaders(List.of("X-Request-Id", HttpHeaders.RETRY_AFTER,
                 RateLimitFilter.LIMIT_HEADER, RateLimitFilter.REMAINING_HEADER));
         config.setAllowCredentials(true);

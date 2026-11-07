@@ -7,12 +7,15 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import java.time.Duration;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.data.redis.RedisConnectionDetails;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 /**
  * Registers {@link RateLimitFilter} explicitly, with a fixed position in the filter chain:
@@ -24,6 +27,21 @@ import org.springframework.core.Ordered;
  */
 @Configuration(proxyBeanMethods = false)
 public class RateLimitConfig {
+
+    /**
+     * CORS headers ahead of the rate limit. The security chain's own CORS filter runs after it, so a 429
+     * would leave without them: the browser then hides the response from the page, which sees a network
+     * error instead of "try again in 50 seconds". The later filter leaves these headers as they are.
+     */
+    @Bean
+    public FilterRegistrationBean<CorsFilter> earlyCorsFilter(
+            @Qualifier("corsConfigurationSource") CorsConfigurationSource corsConfiguration) {
+        FilterRegistrationBean<CorsFilter> registration = new FilterRegistrationBean<>(new CorsFilter(corsConfiguration));
+        registration.setName("earlyCorsFilter");
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 5);
+        registration.addUrlPatterns("/api/*");
+        return registration;
+    }
 
     @Bean
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilter(RateLimitProperties properties,

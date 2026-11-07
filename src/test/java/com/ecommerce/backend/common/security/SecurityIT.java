@@ -13,6 +13,7 @@ import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -192,6 +193,21 @@ class SecurityIT extends AbstractIntegrationTest {
         assertThat(headers.getAccessControlAllowCredentials()).isTrue();
         assertThat(headers.getAccessControlAllowMethods()).contains(HttpMethod.POST);
         assertThat(headers.getAccessControlMaxAge()).isEqualTo(3600);
+    }
+
+    /** Checkout sends this header: if the preflight refuses it, no browser can ever buy anything. */
+    @Test
+    void preflightAllowsTheHeadersABrowserCheckoutSends() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setOrigin("http://localhost:3000");
+        headers.setAccessControlRequestMethod(HttpMethod.POST);
+        headers.setAccessControlRequestHeaders(List.of("authorization", "content-type", "idempotency-key", "x-request-id"));
+
+        ResponseEntity<Void> response = rest.exchange("/api/v1/checkout", HttpMethod.OPTIONS, new HttpEntity<>(headers), Void.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getHeaders().getAccessControlAllowHeaders())
+                .contains("idempotency-key", "authorization", "content-type", "x-request-id");
     }
 
     @Test

@@ -79,6 +79,7 @@ public class OrganizationService {
      */
     @Transactional
     public OrganizationResponse create(UUID userId, String slug, String name) {
+        System.out.println("OrganizationService.create called with userId: " + userId + ", slug: " + slug + ", name: " + name);
         if (!users.isActive(userId)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "This account is no longer available.");
         }
